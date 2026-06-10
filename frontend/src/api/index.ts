@@ -22,25 +22,41 @@ api.interceptors.request.use((config) => {
 // 响应拦截器：统一错误处理
 api.interceptors.response.use(
   (response) => {
-    return response.data
+    const body = response.data
+    // 后端统一返回 {code, message, data} 格式
+    if (body && typeof body === 'object' && 'code' in body) {
+      if (body.code !== 200) {
+        ElMessage.error(body.message || '请求失败')
+        return Promise.reject(new Error(body.message || '请求失败'))
+      }
+    }
+    return body
   },
   (error) => {
     if (error.response) {
       const { status, data } = error.response
+      const msg = data?.message || ''
       switch (status) {
         case 401:
-          localStorage.removeItem('trace-token')
-          router.push('/login')
-          ElMessage.error('登录已过期，请重新登录')
+          // 登录页面的 401 是用户名密码错误，不是过期
+          if (router.currentRoute.value.path === '/login') {
+            ElMessage.error(msg || '用户名或密码错误')
+          } else {
+            localStorage.removeItem('trace-token')
+            localStorage.removeItem('trace-username')
+            localStorage.removeItem('trace-userId')
+            router.push('/login')
+            ElMessage.error('登录已过期，请重新登录')
+          }
           break
         case 403:
           ElMessage.error('没有权限')
           break
         case 500:
-          ElMessage.error('服务器错误')
+          ElMessage.error(msg || '服务器错误')
           break
         default:
-          ElMessage.error(data?.message || '请求失败')
+          ElMessage.error(msg || '请求失败')
       }
     } else {
       ElMessage.error('网络异常')

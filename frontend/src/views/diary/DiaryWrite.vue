@@ -102,7 +102,7 @@ onMounted(async () => {
       const res: any = await api.get(`/diary/${id}`)
       Object.assign(form, {
         title: res.data.title,
-        content: res.data.content,
+        content: res.data.records,
         moodTag: res.data.moodTag,
       })
     } catch { router.push('/diary') }

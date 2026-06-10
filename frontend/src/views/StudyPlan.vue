@@ -1,6 +1,9 @@
 <template>
   <div class="study-plan">
-    <h2>🎯 我的计划</h2>
+    <h2>
+      <svg viewBox="0 0 24 24" fill="none" stroke="#7B61FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="vertical-align:-4px;margin-right:6px"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+      我的计划
+    </h2>
     <p class="desc">输入你的学习目标，AI 会自动拆解为可执行的阶段性计划。生成过程异步进行，完成后会通知你。</p>
 
     <!-- 目标输入 -->
@@ -156,7 +159,7 @@ async function fetchPlans() {
   loading.value = true
   try {
     const res: any = await api.get('/plan', { params: { page: 0, size: 20 } })
-    const allPlans = res.data?.content || []
+    const allPlans = res.data?.records || []
     // 已经完成的计划（有 planUrl 且不是"正在生成中..."）
     completedPlans.value = allPlans.filter(
       (p: any) => p.planUrl && p.planContent !== '正在生成中...'

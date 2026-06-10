@@ -107,8 +107,8 @@ async function fetchDiaries() {
   loading.value = true
   try {
     const res: any = await api.get('/diary', { params: { page: page.value, size: size.value } })
-    diaries.value = res.data?.content || []
-    total.value = res.data?.totalElements || 0
+    diaries.value = res.data?.records || []
+    total.value = res.data?.total || 0
   } catch { /* handled */ }
   loading.value = false
 }

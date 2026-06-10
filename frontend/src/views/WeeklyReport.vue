@@ -1,7 +1,10 @@
 <template>
   <div class="weekly-report">
     <div class="page-header">
-      <h2>📈 成长周报</h2>
+      <h2>
+        <svg viewBox="0 0 24 24" fill="none" stroke="#7B61FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="20" height="20" style="vertical-align:-4px;margin-right:6px"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        成长周报
+      </h2>
       <el-button type="primary" @click="generateReport" :loading="generating">
         生成本周周报
       </el-button>
@@ -70,8 +73,8 @@ async function fetchReports() {
   loading.value = true
   try {
     const res: any = await api.get('/weekly-report', { params: { page: page.value, size: size.value } })
-    reports.value = res.data?.content || []
-    total.value = res.data?.totalElements || 0
+    reports.value = res.data?.records || []
+    total.value = res.data?.total || 0
   } catch { /* handled */ }
   loading.value = false
 }

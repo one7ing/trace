@@ -17,6 +17,18 @@
       </div>
     </el-card>
 
+    <!-- AI 分析 -->
+    <el-card v-if="record.aiAnalysis" class="analysis-card">
+      <template #header>
+        <span class="analysis-title">🤖 AI 面试分析与经验总结</span>
+      </template>
+      <MarkdownRenderer :content="record.aiAnalysis" />
+      <div v-if="record.weakSkills && record.weakSkills !== '无'" style="margin-top:14px;display:flex;flex-wrap:wrap;gap:6px;align-items:center;">
+        <span style="font-size:12px;color:#e6a23c;font-weight:600;">⚠️ 薄弱技能：</span>
+        <el-tag v-for="w in record.weakSkills.split(',')" :key="w" type="warning" size="small">{{ w }}</el-tag>
+      </div>
+    </el-card>
+
     <!-- 逐题详情 -->
     <el-timeline style="margin-top: 24px;">
       <el-timeline-item
