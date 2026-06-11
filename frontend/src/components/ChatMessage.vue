@@ -1,14 +1,8 @@
 <template>
   <div class="msg-row" :class="role">
-    <div class="msg-avatar" :class="role">
-      <svg v-if="role === 'ai'" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
-        <path d="M12 2a4 4 0 0 1 4 4v2a4 4 0 0 1-8 0V6a4 4 0 0 1 4-4z"/>
-        <rect x="3" y="10" width="18" height="10" rx="3"/>
-        <circle cx="9" cy="15" r="1.5" fill="white" stroke="none"/>
-        <circle cx="15" cy="15" r="1.5" fill="white" stroke="none"/>
-        <path d="M9 18c.83.67 1.83 1 3 1s2.17-.33 3-1" stroke="white" stroke-width="1.5"/>
-      </svg>
-      <span v-else class="user-avatar-text">{{ getInitial() }}</span>
+    <div class="msg-avatar" :class="role" :style="role === 'user' && userAvatarImg ? { backgroundImage: 'url('+userAvatarImg+')', backgroundSize:'cover' } : {}">
+      <span v-if="role === 'ai'">🤖</span>
+      <span v-else-if="!userAvatarImg">{{ userInitial }}</span>
     </div>
     <div class="msg-body">
       <div class="msg-sender">{{ role === 'ai' ? 'Trace AI' : '我' }}</div>
@@ -21,12 +15,18 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed, onMounted } from 'vue'
 import MarkdownRenderer from './MarkdownRenderer.vue'
-import { useAuthStore } from '@/stores/auth'
 
-const props = defineProps<{ role: 'user' | 'ai'; content: string }>()
+defineProps<{ role: 'user' | 'ai'; content: string }>()
+import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
-function getInitial() { return auth.username?.charAt(0)?.toUpperCase() || 'U' }
+const userInitial = computed(() => auth.username?.charAt(0)?.toUpperCase() || 'U')
+const userAvatarImg = ref('')
+
+onMounted(() => {
+  userAvatarImg.value = localStorage.getItem('trace-user-avatar-img') || ''
+})
 </script>
 
 <style lang="scss" scoped>

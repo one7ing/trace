@@ -1,36 +1,21 @@
 package com.trace.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "long_term_memories")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@TableName("long_term_memories")
 public class LongTermMemory {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
-
-    @Column(name = "source_type", length = 30)
+    @TableField("source_type")
     private String sourceType;
-
-    @Column(name = "source_id")
+    @TableField("source_id")
     private Long sourceId;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

@@ -21,6 +21,13 @@
       <span>面试记录</span>
     </router-link>
 
+    <router-link to="/knowledge-base" class="nav-item" :class="{ active: isActive('/knowledge-base') }">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <span>知识库</span>
+    </router-link>
+
     <router-link to="/goal" class="nav-item" :class="{ active: isActive('/goal') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
         <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>

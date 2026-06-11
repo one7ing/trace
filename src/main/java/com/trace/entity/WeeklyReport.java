@@ -1,43 +1,26 @@
 package com.trace.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "weekly_reports")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@TableName("weekly_reports")
 public class WeeklyReport {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
-
-    @Column(name = "week_start", nullable = false)
+    @TableField("week_start")
     private LocalDate weekStart;
-
-    @Column(name = "week_end", nullable = false)
+    @TableField("week_end")
     private LocalDate weekEnd;
-
-    @Column(columnDefinition = "TEXT")
     private String summary;
-
-    @Column(name = "full_content", columnDefinition = "TEXT")
+    @TableField("full_content")
     private String fullContent;
-
-    @Column(name = "report_url", length = 500)
+    @TableField("report_url")
     private String reportUrl;
-
-    @CreationTimestamp
-    @Column(name = "generated_at", updatable = false)
+    @TableField(value = "generated_at", fill = FieldFill.INSERT)
     private LocalDateTime generatedAt;
 }

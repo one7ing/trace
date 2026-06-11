@@ -18,4 +18,6 @@ public class InterviewStartRequest {
 
     @Min(value = 1, message = "题目数量至少为1")
     private int questionCount = 5;
+
+    private String difficulty;
 }

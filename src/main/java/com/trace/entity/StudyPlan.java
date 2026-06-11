@@ -1,36 +1,21 @@
 package com.trace.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "study_plans")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@TableName("study_plans")
 public class StudyPlan {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
-
-    @Column(nullable = false, length = 500)
     private String goal;
-
-    @Column(name = "plan_content", columnDefinition = "TEXT")
+    @TableField("plan_content")
     private String planContent;
-
-    @Column(name = "plan_url", length = 500)
+    @TableField("plan_url")
     private String planUrl;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
 }

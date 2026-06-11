@@ -1,41 +1,22 @@
 package com.trace.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-import org.hibernate.annotations.UpdateTimestamp;
-
 import java.time.LocalDateTime;
 
-@Entity
-@Table(name = "diaries")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@TableName("diaries")
 public class Diary {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
-
-    @Column(nullable = false, length = 200)
     private String title;
-
-    @Column(nullable = false, columnDefinition = "TEXT")
     private String content;
-
-    @Column(name = "mood_tag", length = 20)
+    @TableField("mood_tag")
     private String moodTag;
-
-    @CreationTimestamp
-    @Column(name = "created_at", updatable = false)
+    @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
-
-    @UpdateTimestamp
-    @Column(name = "updated_at")
+    @TableField(value = "updated_at", fill = FieldFill.INSERT_UPDATE)
     private LocalDateTime updatedAt;
 }

@@ -1,49 +1,33 @@
 package com.trace.entity;
 
-import jakarta.persistence.*;
+import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
-import org.hibernate.annotations.CreationTimestamp;
-
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
-@Entity
-@Table(name = "interview_records")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
-@Builder
-@ToString(exclude = "questionDetails")
+@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@TableName("interview_records")
 public class InterviewRecord {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @TableId(type = IdType.AUTO)
     private Long id;
-
-    @Column(name = "user_id", nullable = false)
+    @TableField("user_id")
     private Long userId;
-
-    @Column(nullable = false, length = 50)
     private String industry;
-
-    @Column(name = "skill_tags", columnDefinition = "TEXT[]")
+    @TableField(value = "skill_tags", typeHandler = com.trace.config.ListStringTypeHandler.class)
     private List<String> skillTags;
-
-    @Column(name = "total_questions")
+    @TableField("total_questions")
     private int totalQuestions;
-
-    @Column(name = "avg_score", precision = 5, scale = 2)
+    @TableField("avg_score")
     private BigDecimal avgScore;
-
-    @Column(name = "report_url", length = 500)
+    @TableField("report_url")
     private String reportUrl;
-
-    @CreationTimestamp
-    @Column(name = "completed_at", updatable = false)
+    @TableField("ai_analysis")
+    private String aiAnalysis;
+    @TableField("weak_skills")
+    private String weakSkills;
+    @TableField(value = "completed_at", fill = FieldFill.INSERT)
     private LocalDateTime completedAt;
-
-    @OneToMany(mappedBy = "recordId", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sequenceNum ASC")
+    @TableField(exist = false)
     private List<InterviewQuestionDetail> questionDetails;
 }
