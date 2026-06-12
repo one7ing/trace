@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trace.mapper.LongTermMemoryMapper">
+
+    <select id="findRecentByUserId" resultType="com.trace.entity.LongTermMemory">
+        SELECT * FROM long_term_memories
+        WHERE user_id = #{userId}
+          AND source_type IN ('diary','interview','knowledge','plan')
+        ORDER BY created_at DESC
+    </select>
+
+    <insert id="insertVector">
+        INSERT INTO long_term_memories (user_id,
+                                        content,
+                                        embedding,
+                                        source_type,
+                                        source_id,
+                                        created_at)
+        VALUES (#{userId},
+                #{content},
+                #{vecStr}::vector,
+                #{sourceType},
+                #{sourceId},
+                CURRENT_TIMESTAMP)
+    </insert>
+
+    <select id="retrieveByVector" resultType="com.trace.entity.LongTermMemory">
+        SELECT id,
+               user_id,
+               content,
+               source_type,
+               source_id,
+               created_at
+        FROM long_term_memories
+        WHERE user_id = #{userId}
+        ORDER BY embedding &lt;=&gt; #{vecStr}::vector
+        LIMIT #{limit}
+    </select>
+
+</mapper>

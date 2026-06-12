@@ -5,10 +5,13 @@ import com.trace.entity.KnowledgeBase;
 import com.trace.mapper.KnowledgeBaseMapper;
 import com.trace.service.KnowledgeBaseService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import java.util.Comparator;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
+import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -23,10 +26,14 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     private final KnowledgeBaseMapper kbMapper;
     private final VectorStore vectorStore;
+    private final EmbeddingModel embeddingModel;
 
-    public KnowledgeBaseServiceImpl(KnowledgeBaseMapper kbMapper, VectorStore vectorStore) {
+    public KnowledgeBaseServiceImpl(KnowledgeBaseMapper kbMapper,
+                                     VectorStore vectorStore,
+                                     @Autowired(required = false) EmbeddingModel embeddingModel) {
         this.kbMapper = kbMapper;
         this.vectorStore = vectorStore;
+        this.embeddingModel = embeddingModel;
     }
 
     @Override
@@ -57,10 +64,13 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public List<KnowledgeBase> search(Long userId, String query, String knowledgeType, int limit) {
         List<Document> docs = vectorStore.similaritySearch(SearchRequest.builder().query(query).topK(limit).build());
         if (docs.isEmpty()) return List.of();
-        Set<String> docIds = docs.stream().map(Document::getId).collect(Collectors.toSet());
+        Set<String> docIds = docs.stream()
+                .map(Document::getId)
+                .collect(Collectors.toSet());
         LambdaQueryWrapper<KnowledgeBase> w = new LambdaQueryWrapper<>();
         if ("USER".equals(knowledgeType))
-            w.eq(KnowledgeBase::getUserId, userId).eq(KnowledgeBase::getKnowledgeType, "USER");
+            w.eq(KnowledgeBase::getUserId, userId)
+                    .eq(KnowledgeBase::getKnowledgeType, "USER");
         else
             w.in(KnowledgeBase::getKnowledgeType, List.of("INTERVIEW", "WEB"));
         List<KnowledgeBase> matched = kbMapper.selectList(w).stream()
@@ -171,16 +181,99 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         }
     }
 
+    @Override
+    public List<Document> hybridSearch(Long userId, String query, String category, int topK) {
+        if (embeddingModel == null) {
+            return List.of();
+        }
+        float[] emb = embeddingModel.embed(query);
+        String vecStr = vectorToString(emb);
+        String tsQuery = query.replaceAll("[^\\w\\u4e00-\\u9fff]", " | ");
+        return kbMapper.hybridSearch(vecStr, tsQuery, category, topK);
+    }
+
     // ===== 内部 =====
-    private List<Document> chunkToDocuments(String text, Long userId, String fileName, String knowledgeType) {
+    /**
+     * 语义分块：按句号、换行、段落分隔符切分，保证每块是完整语义单元。
+     */
+    private List<Document> chunkToDocuments(String text, Long userId, String fileName,
+                                            String knowledgeType) {
         List<Document> docs = new ArrayList<>();
-        int size = 800, overlap = 80, start = 0, idx = 0;
-        while (start < text.length()) {
-            String chunk = text.substring(start, Math.min(start + size, text.length()));
-            String docId = UUID.randomUUID().toString();
-            Document doc = new Document(docId, chunk, Map.of("userId", userId.toString(), "fileName", fileName, "knowledgeType", knowledgeType, "chunkIndex", String.valueOf(idx)));
-            docs.add(doc);
-            start += (size - overlap); idx++;
+        // 先按段落分隔（两个以上换行）
+        String[] paragraphs = text.split("\\n\\s*\\n");
+        int globalIdx = 0;
+        StringBuilder currentChunk = new StringBuilder();
+
+        for (String para : paragraphs) {
+            para = para.trim();
+            if (para.isEmpty()) {
+                continue;
+            }
+            // 段落内按句号/问号/感叹号/分号切分句子，保留标点
+            String[] sentences = para.split("(?<=[。！？；])");
+            for (String sentence : sentences) {
+                sentence = sentence.trim();
+                if (sentence.isEmpty()) {
+                    continue;
+                }
+                // 当前块 + 新句子超过 800 字且当前块已有内容 → 提交当前块
+                if (currentChunk.length() > 0
+                        && currentChunk.length() + sentence.length() > 800) {
+                    String chunkText = currentChunk.toString().trim();
+                    if (!chunkText.isEmpty()) {
+                        String docId = UUID.randomUUID().toString();
+                        docs.add(new Document(docId, chunkText,
+                                Map.of("userId", userId.toString(),
+                                        "fileName", fileName,
+                                        "knowledgeType", knowledgeType,
+                                        "chunkIndex", String.valueOf(globalIdx++))));
+                    }
+                    currentChunk.setLength(0);
+                }
+                // 单句超过 800 字，截断
+                if (sentence.length() > 800 && currentChunk.length() == 0) {
+                    for (int i = 0; i < sentence.length(); i += 750) {
+                        String sub = sentence.substring(i,
+                                Math.min(i + 750, sentence.length()));
+                        String docId = UUID.randomUUID().toString();
+                        docs.add(new Document(docId, sub,
+                                Map.of("userId", userId.toString(),
+                                        "fileName", fileName,
+                                        "knowledgeType", knowledgeType,
+                                        "chunkIndex", String.valueOf(globalIdx++))));
+                    }
+                } else {
+                    if (currentChunk.length() > 0) {
+                        currentChunk.append(" ");
+                    }
+                    currentChunk.append(sentence);
+                }
+            }
+            // 段落结束，提交当前块
+            if (currentChunk.length() > 0) {
+                String chunkText = currentChunk.toString().trim();
+                if (!chunkText.isEmpty()) {
+                    String docId = UUID.randomUUID().toString();
+                    docs.add(new Document(docId, chunkText,
+                            Map.of("userId", userId.toString(),
+                                    "fileName", fileName,
+                                    "knowledgeType", knowledgeType,
+                                    "chunkIndex", String.valueOf(globalIdx++))));
+                }
+                currentChunk.setLength(0);
+            }
+        }
+        // 剩余内容
+        if (currentChunk.length() > 0) {
+            String chunkText = currentChunk.toString().trim();
+            if (!chunkText.isEmpty()) {
+                String docId = UUID.randomUUID().toString();
+                docs.add(new Document(docId, chunkText,
+                        Map.of("userId", userId.toString(),
+                                "fileName", fileName,
+                                "knowledgeType", knowledgeType,
+                                "chunkIndex", String.valueOf(globalIdx))));
+            }
         }
         return docs;
     }
@@ -210,6 +303,20 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     }
 
     private String getFileExtFromName(String name) { int d = name.lastIndexOf('.'); return d == -1 ? "unknown" : name.substring(d + 1).toLowerCase(); }
+    /**
+     * 将 float[] 向量转为 PostgreSQL vector 字符串格式。
+     */
+    private String vectorToString(float[] v) {
+        StringBuilder sb = new StringBuilder("[");
+        for (int i = 0; i < v.length; i++) {
+            if (i > 0) {
+                sb.append(",");
+            }
+            sb.append(v[i]);
+        }
+        return sb.append("]").toString();
+    }
+
     private String getFileExt(MultipartFile f) {
         String n = f.getOriginalFilename(); if (n == null) return "unknown";
         int d = n.lastIndexOf('.'); return d == -1 ? "unknown" : n.substring(d + 1).toLowerCase();

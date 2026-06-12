@@ -27,11 +27,8 @@ spring:
     # MCP 客户端配置 (stdio 模式)
     mcp:
       client:
-        enabled: true
-        toolcallback:
-          enabled: true
-        connection:
-          server-config: classpath:mcp-servers.json
+        stdio:
+          servers-configuration: classpath:mcp-servers.json
 
   # PostgreSQL + PgVector
   datasource:
@@ -45,6 +42,7 @@ spring:
 
   # MyBatis-Plus
   mybatis-plus:
+    mapper-locations: classpath:mapper/*.xml
     configuration:
       log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
     global-config:

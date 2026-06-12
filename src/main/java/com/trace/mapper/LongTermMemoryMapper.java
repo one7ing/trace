@@ -11,11 +11,18 @@ import java.util.List;
 @Mapper
 public interface LongTermMemoryMapper extends BaseMapper<LongTermMemory> {
 
-    @Select("SELECT * FROM long_term_memories WHERE user_id = #{userId} AND source_type IN ('diary','interview','knowledge','plan') ORDER BY created_at DESC")
     List<LongTermMemory> findRecentByUserId(@Param("userId") Long userId);
 
-    @Select("SELECT * FROM long_term_memories WHERE user_id = #{userId} AND source_type = #{sourceType} ORDER BY created_at DESC")
-    List<LongTermMemory> findByUserIdAndSourceType(Long userId, String sourceType);
 
-    // 向量检索用原生 JDBC（PgVector 的 <=> 运算符 MyBatis-Plus 不直接支持）
+    /** 向量插入 */
+    void insertVector(@Param("userId") Long userId,
+                      @Param("content") String content,
+                      @Param("vecStr") String vecStr,
+                      @Param("sourceType") String sourceType,
+                      @Param("sourceId") Long sourceId);
+
+    /** 向量相似度检索 */
+    List<LongTermMemory> retrieveByVector(@Param("userId") Long userId,
+                                          @Param("vecStr") String queryVec,
+                                          @Param("limit") int limit);
 }

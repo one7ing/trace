@@ -2,37 +2,72 @@ package com.trace.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.trace.entity.KnowledgeBase;
-import org.apache.ibatis.annotations.*;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import java.util.List;
 
+/**
+ * 知识库 Mapper —— 常规 CRUD 用 MyBatis-Plus BaseMapper，
+ * 向量操作和混合检索在 XML 中定义。
+ */
 @Mapper
 public interface KnowledgeBaseMapper extends BaseMapper<KnowledgeBase> {
 
-    @Select("SELECT * FROM knowledge_bases WHERE user_id = #{userId} AND knowledge_type = #{type} ORDER BY created_at DESC")
-    List<KnowledgeBase> findByUserIdAndType(Long userId, String type);
+    /**
+     * 按用户和类型查询。
+     */
+    List<KnowledgeBase> findByUserIdAndType(@Param("userId") Long userId,
+                                            @Param("type") String type);
 
-    @Select("SELECT * FROM knowledge_bases WHERE knowledge_type IN ('INTERVIEW','WEB') ORDER BY created_at DESC")
+    /**
+     * 查询共享知识库（INTERVIEW / WEB）。
+     */
     List<KnowledgeBase> findShared();
 
-    @Delete("DELETE FROM knowledge_bases WHERE user_id = #{userId} AND knowledge_type = 'USER'")
-    int deleteAllByUserId(Long userId);
+    /**
+     * 删除用户所有知识库。
+     */
+    int deleteAllByUserId(@Param("userId") Long userId);
 
-    /** PgVector 向量插入 */
-    @Insert("INSERT INTO knowledge_bases (id,user_id,file_name,file_type,content,embedding,knowledge_type,chunk_index,metadata,created_at) VALUES (#{id},#{userId},#{fileName},#{fileType},#{content},#{vecStr}::vector,#{knowledgeType},#{chunkIdx},'{}'::jsonb,CURRENT_TIMESTAMP)")
-    void insertVector(@Param("id") Long id, @Param("userId") Long userId, @Param("fileName") String fileName,
-                      @Param("fileType") String fileType, @Param("content") String content,
-                      @Param("vecStr") String vecStr, @Param("knowledgeType") String knowledgeType,
+    /**
+     * 按文件名查询所有分块。
+     */
+    List<KnowledgeBase> findByFileName(@Param("userId") Long userId,
+                                       @Param("fileName") String fileName);
+
+    /**
+     * 混合检索：向量相似度(0.7) + 全文 ts_rank(0.3)。
+     */
+    List<org.springframework.ai.document.Document> hybridSearch(
+            @Param("queryVec") String queryVec,
+            @Param("tsQuery") String tsQuery,
+            @Param("category") String category,
+            @Param("topK") int topK);
+
+    /**
+     * PgVector 向量插入。
+     */
+    void insertVector(@Param("id") Long id,
+                      @Param("userId") Long userId,
+                      @Param("fileName") String fileName,
+                      @Param("fileType") String fileType,
+                      @Param("content") String content,
+                      @Param("vecStr") String vecStr,
+                      @Param("knowledgeType") String knowledgeType,
                       @Param("chunkIdx") int chunkIdx);
 
-    /** PgVector <=> 余弦相似度搜索 */
-    @Select("SELECT * FROM knowledge_bases WHERE knowledge_type = #{knowledgeType} ORDER BY embedding <=> #{vecStr}::vector LIMIT #{limit}")
-    List<KnowledgeBase> similaritySearchAll(@Param("vecStr") String vecStr, @Param("knowledgeType") String knowledgeType, @Param("limit") int limit);
+    /**
+     * 向量相似度搜索（全类型）。
+     */
+    List<KnowledgeBase> similaritySearchAll(@Param("vecStr") String vecStr,
+                                            @Param("knowledgeType") String knowledgeType,
+                                            @Param("limit") int limit);
 
-    @Select("SELECT * FROM knowledge_bases WHERE user_id = #{userId} AND knowledge_type = 'USER' ORDER BY embedding <=> #{vecStr}::vector LIMIT #{limit}")
-    List<KnowledgeBase> similaritySearchUser(@Param("userId") Long userId, @Param("vecStr") String vecStr, @Param("limit") int limit);
-
-    /** 获取某个文件的所有分块 */
-    @Select("SELECT * FROM knowledge_bases WHERE user_id = #{userId} AND file_name = #{fileName} ORDER BY chunk_index ASC")
-    List<KnowledgeBase> findByFileName(@Param("userId") Long userId, @Param("fileName") String fileName);
+    /**
+     * 向量相似度搜索（仅用户）。
+     */
+    List<KnowledgeBase> similaritySearchUser(@Param("userId") Long userId,
+                                             @Param("vecStr") String vecStr,
+                                             @Param("limit") int limit);
 }

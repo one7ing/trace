@@ -2,6 +2,7 @@ package com.trace.controller;
 
 import com.trace.dto.ApiResponse;
 import com.trace.entity.KnowledgeBase;
+import com.trace.service.InterviewBankService;
 import com.trace.service.KnowledgeBaseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -12,9 +13,19 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
-@RestController @RequestMapping("/api/knowledge-base") @RequiredArgsConstructor
+@RestController
+@RequestMapping("/api/knowledge-base")
+@RequiredArgsConstructor
 public class KnowledgeBaseController {
     private final KnowledgeBaseService kbService;
+    private final InterviewBankService interviewBankService;
+
+    /** 一键导入题库到面试知识库 */
+    @PostMapping("/import-bank")
+    public ResponseEntity<ApiResponse<Integer>> importBank() {
+        int count = interviewBankService.importQuestionBank();
+        return ResponseEntity.ok(ApiResponse.success("题库导入完成，共 " + count + " 条", count));
+    }
 
     /** 上传文件 */
     @PostMapping("/upload")
@@ -85,6 +96,17 @@ public class KnowledgeBaseController {
             @AuthenticationPrincipal Long userId, @RequestParam String fileName) {
         kbService.deleteByFileName(userId, fileName);
         return ResponseEntity.ok(ApiResponse.success("已删除", null));
+    }
+
+    /** 混合检索（向量 0.7 + 全文 0.3） */
+    @GetMapping("/hybrid-search")
+    public ResponseEntity<ApiResponse<List<org.springframework.ai.document.Document>>> hybridSearch(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam String query,
+            @RequestParam(defaultValue = "") String category,
+            @RequestParam(defaultValue = "10") int topK) {
+        return ResponseEntity.ok(ApiResponse.success(
+                kbService.hybridSearch(userId, query, category, topK)));
     }
 
     /** 清空用户知识库 */
