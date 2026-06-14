@@ -16,6 +16,6 @@ public class LongTermMemory {
     private String sourceType;
     @TableField("source_id")
     private Long sourceId;
-    @TableField(value = "created_at", fill = FieldFill.INSERT)
+    @TableField(value = "created_at", insertStrategy = FieldStrategy.NEVER)
     private LocalDateTime createdAt;
 }

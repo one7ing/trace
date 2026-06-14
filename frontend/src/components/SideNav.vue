@@ -1,5 +1,40 @@
 <template>
   <div class="side-nav-wrapper">
+    <!-- 用户头像区 -->
+    <div class="user-section">
+      <el-dropdown trigger="click" @command="handleUserCommand">
+        <span class="user-avatar-wrapper">
+          <span
+            class="user-avatar"
+            :style="userAvatarUrl
+              ? { backgroundImage: 'url(' + userAvatarUrl + ')', backgroundSize: 'cover' }
+              : {}"
+          >{{ userAvatarUrl ? '' : userInitial }}</span>
+        </span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="avatar">🎨 设置头像</el-dropdown-item>
+            <el-dropdown-item command="username">✏️ 修改昵称</el-dropdown-item>
+            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+      <span class="user-name">{{ authStore.username }}</span>
+      <el-dropdown trigger="click" @command="handleUserCommand">
+        <span class="user-settings">个人设置 ▾</span>
+        <template #dropdown>
+          <el-dropdown-menu>
+            <el-dropdown-item command="avatar">🎨 设置头像</el-dropdown-item>
+            <el-dropdown-item command="username">✏️ 修改昵称</el-dropdown-item>
+            <el-dropdown-item command="logout" divided>退出登录</el-dropdown-item>
+          </el-dropdown-menu>
+        </template>
+      </el-dropdown>
+    </div>
+
+    <div class="nav-divider"></div>
+
+    <!-- 导航菜单 -->
     <router-link to="/knowledge" class="nav-item" :class="{ active: isActive('/knowledge') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
         <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
@@ -58,6 +93,7 @@
       <span>我的计划</span>
     </router-link>
 
+    <!-- 底部：深色切换 -->
     <div class="nav-footer">
       <button class="dark-toggle" @click="toggleDark" :title="isDark ? '切换浅色' : '切换深色'">
         <svg v-if="isDark" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
@@ -69,18 +105,112 @@
         <span>{{ isDark ? '浅色' : '深色' }}</span>
       </button>
     </div>
+
+    <!-- 头像设置弹窗 -->
+    <el-dialog v-model="showAvatarDialog" title="设置头像" width="400px">
+      <div style="text-align:center">
+        <div class="avatar-preview-lg" :style="{ backgroundImage: userAvatarUrl ? 'url('+userAvatarUrl+')' : 'none' }">
+          <span v-if="!userAvatarUrl">{{ userInitial }}</span>
+        </div>
+        <input type="file" accept="image/*" ref="avatarInputRef" @change="handleAvatarUpload" style="display:none"/>
+        <el-button @click="($refs.avatarInputRef as HTMLInputElement).click()" style="margin-top:12px">选择图片</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 昵称修改弹窗 -->
+    <el-dialog v-model="showUsernameDialog" title="修改昵称" width="360px">
+      <el-input v-model="newUsername" placeholder="输入新昵称（至少3个字符）" maxlength="50"/>
+      <template #footer>
+        <el-button @click="showUsernameDialog=false">取消</el-button>
+        <el-button type="primary" @click="saveUsername">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+import api from '@/api'
+import { ElMessage } from 'element-plus'
 
 const route = useRoute()
+const router = useRouter()
+const authStore = useAuthStore()
 const isDark = ref(false)
+const showAvatarDialog = ref(false)
+const showUsernameDialog = ref(false)
+const newUsername = ref(authStore.username || '')
+const userAvatarUrl = ref(localStorage.getItem('trace-user-avatar-img') || '')
+const avatarInputRef = ref<HTMLInputElement>()
 
-function isActive(path: string) { return route.path.startsWith(path) }
+const userInitial = computed(() => authStore.username?.charAt(0)?.toUpperCase() || 'U')
 
+function isActive(path: string) {
+  // 精确匹配或子路径，避免 /knowledge 误匹配 /knowledge-base
+  return route.path === path || route.path.startsWith(path + '/')
+}
+
+/** 处理用户下拉菜单命令 */
+function handleUserCommand(command: string) {
+  switch (command) {
+    case 'avatar':
+      showAvatarDialog.value = true
+      break
+    case 'username':
+      newUsername.value = authStore.username || ''
+      showUsernameDialog.value = true
+      break
+    case 'logout':
+      authStore.logout()
+      router.push('/login')
+      break
+  }
+}
+
+/** 保存昵称 */
+async function saveUsername() {
+  if (!newUsername.value || newUsername.value.trim().length < 3) {
+    ElMessage.warning('昵称至少3个字符')
+    return
+  }
+  try {
+    const res: any = await api.put('/auth/username', { username: newUsername.value.trim() })
+    authStore.setAuth({ ...authStore.$state, username: res.data })
+    localStorage.setItem('trace-username', res.data)
+    showUsernameDialog.value = false
+    ElMessage.success('昵称已更新')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '修改失败')
+  }
+}
+
+/** 上传头像 */
+async function handleAvatarUpload(e: Event) {
+  const t = e.target as HTMLInputElement
+  const file = t.files?.[0]
+  if (!file) {
+    return
+  }
+  const reader = new FileReader()
+  reader.onload = async (ev) => {
+    userAvatarUrl.value = ev.target?.result as string
+    localStorage.setItem('trace-user-avatar-img', userAvatarUrl.value)
+    const form = new FormData()
+    form.append('file', file)
+    try {
+      await api.post('/auth/avatar', form, { headers: { 'Content-Type': 'multipart/form-data' } })
+      showAvatarDialog.value = false
+      ElMessage.success('头像已更新')
+    } catch {
+      ElMessage.error('上传失败')
+    }
+  }
+  reader.readAsDataURL(file)
+}
+
+/** 深色模式切换 */
 function toggleDark() {
   isDark.value = !isDark.value
   document.documentElement.classList.toggle('dark', isDark.value)
@@ -89,15 +219,45 @@ function toggleDark() {
 
 onMounted(() => {
   if (localStorage.getItem('trace-dark') === '1') {
-    isDark.value = true; document.documentElement.classList.add('dark')
+    isDark.value = true
+    document.documentElement.classList.add('dark')
   }
 })
 </script>
 
 <style lang="scss" scoped>
 .side-nav-wrapper {
-  display: flex; flex-direction: column; height: 100%; padding: 12px 0;
+  display: flex; flex-direction: column; height: 100%; padding: 0;
 
+  // === 用户区 ===
+  .user-section {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 18px 10px 10px; gap: 8px;
+    .user-avatar-wrapper {
+      display: inline-block; cursor: pointer;
+      .user-avatar {
+        display: flex; align-items: center; justify-content: center;
+        width: 48px; height: 48px; border-radius: 14px;
+        background: linear-gradient(135deg, #6C5CE7, #8B7CF0);
+        color: #fff; font-size: 20px; font-weight: 600;
+        transition: transform var(--transition), box-shadow var(--transition);
+        &:hover { transform: scale(1.05); box-shadow: 0 4px 14px rgba(108,92,231,.25); }
+      }
+    }
+    .user-name {
+      font-size: 13px; font-weight: 600; color: var(--color-text);
+      max-width: 160px; text-align: center;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .user-settings {
+      font-size: 11px; color: var(--color-text-muted); cursor: pointer;
+      padding: 2px 10px; border-radius: 4px;
+      transition: all var(--transition);
+      &:hover { color: var(--color-primary); background: var(--color-primary-bg); }
+    }
+  }
+
+  // === 导航项 ===
   .nav-item {
     display: flex; align-items: center; gap: 10px; padding: 9px 18px; margin: 1px 8px;
     border-radius: 8px; font-size: 13px; color: var(--color-text-secondary); text-decoration: none;
@@ -109,6 +269,7 @@ onMounted(() => {
 
   .nav-divider { height: 1px; background: var(--color-border-light); margin: 8px 16px; }
 
+  // === 底部 ===
   .nav-footer {
     margin-top: auto; padding: 14px 18px; border-top: 1px solid var(--color-border);
     .dark-toggle {
@@ -118,6 +279,15 @@ onMounted(() => {
       transition: all var(--transition);
       &:hover { border-color: var(--color-primary); color: var(--color-primary); }
     }
+  }
+
+  // === 头像预览（弹窗内） ===
+  .avatar-preview-lg {
+    width: 80px; height: 80px; border-radius: 16px;
+    background: linear-gradient(135deg, #6C5CE7, #8B7CF0);
+    color: #fff; font-size: 32px; font-weight: 700;
+    display: inline-flex; align-items: center; justify-content: center;
+    background-size: cover; background-position: center;
   }
 }
 </style>

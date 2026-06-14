@@ -1,7 +1,7 @@
 <template>
   <div class="knowledge-page">
     <!-- 欢迎界面 -->
-    <div v-if="messages.length === 0 && !streamingContent" class="welcome-area">
+    <div v-if="messages.length === 0 && !streamingContent && historyLoaded" class="welcome-area">
       <div class="welcome-card">
         <div class="welcome-avatar">
           <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.5" width="38" height="38">
@@ -21,15 +21,18 @@
     </div>
 
     <!-- 对话区 -->
-    <div v-else class="chat-area" ref="chatAreaRef">
+    <div v-else class="chat-area" ref="chatAreaRef" @scroll="onChatScroll">
       <div class="chat-title">Trace 问答</div>
+
+      <!-- 加载更多 -->
+      <div v-if="loadingHistory" class="loading-more">加载中...</div>
+      <div v-else-if="!hasMoreHistory && messages.length > 0" class="no-more">—— 已加载全部历史 ——</div>
 
       <template v-for="(m, i) in messages" :key="i">
         <ChatMessage :role="m.role" :content="m.content" />
-        <!-- AI 回复下方独立免责声明 -->
-        <div v-if="m.role === 'ai'" class="ai-disclaimer">
+        <p v-if="m.role === 'ai' && isFinance(m.content)" class="finance-notice">
           ⚠️ 以上内容基于互联网搜索结果整理，仅供参考。AI 可能会出错，请保持独立判断。
-        </div>
+        </p>
       </template>
 
       <!-- 流式输出中 -->
@@ -41,8 +44,8 @@
         </div>
         <div class="msg-body">
           <div class="msg-sender">Trace AI</div>
-          <div class="msg-bubble ai">
-            <MarkdownRenderer :content="streamingContent || '思考中...'" />
+          <div class="msg-bubble ai streaming-bubble">
+            <MarkdownRenderer :content="streamingContent || '思考中...'" :streaming="true" />
           </div>
         </div>
       </div>
@@ -51,6 +54,14 @@
     <!-- 底部输入 -->
     <div class="input-bar">
       <div class="input-row">
+        <button class="btn-voice"
+                :class="{ recording: isRecording }"
+                @click="toggleVoice" :disabled="streaming"
+                :title="isRecording ? '点击停止录音' : '语音输入'">
+          <svg viewBox="0 0 24 24" fill="none" :stroke="isRecording ? '#fff' : '#6C5CE7'" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/>
+          </svg>
+        </button>
         <input
           ref="inputRef"
           v-model="inputText"
@@ -73,12 +84,13 @@
           </button>
         </template>
       </div>
+      <p class="global-disclaimer">以上内容均由 AI 回复，请谨慎参考</p>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue'
+import { ref, nextTick, onMounted } from 'vue'
 import ChatMessage from '@/components/ChatMessage.vue'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -92,6 +104,37 @@ const inputText = ref('')
 const messages = ref<{role:'user'|'ai',content:string}[]>([])
 const streaming = ref(false)
 const streamingContent = ref('')
+const isRecording = ref(false)
+let recognition: any = null
+
+// 历史记录
+const historyLoaded = ref(false)
+const hasMoreHistory = ref(true)
+const loadingHistory = ref(false)
+let oldestId: number | null = null
+
+// 语音转文字
+function toggleVoice() {
+  if (isRecording.value) { stopVoice(); return }
+  const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+  if (!SpeechRecognition) { ElMessage.warning('浏览器不支持语音识别'); return }
+  recognition = new SpeechRecognition()
+  recognition.lang = 'zh-CN'
+  recognition.interimResults = true
+  recognition.onresult = (e: any) => {
+    let transcript = ''
+    for (let i = e.resultIndex; i < e.results.length; i++) transcript += e.results[i][0].transcript
+    inputText.value = transcript
+  }
+  recognition.onend = () => { isRecording.value = false }
+  recognition.start()
+  isRecording.value = true
+}
+function stopVoice() { if (recognition) { recognition.stop(); isRecording.value = false } }
+
+function isFinance(content: string) {
+  return /金融|理财|股票|基金|证券|银行|贷款|利息|保险|投资|汇率|黄金|期货|债券|信托/.test(content || '')
+}
 const chatAreaRef = ref<HTMLElement>()
 const inputRef = ref<HTMLInputElement>()
 let abortController: AbortController | null = null
@@ -119,13 +162,19 @@ async function sendMessage() {
       if (done) break
       buf += dec.decode(value, { stream:true })
       const lines = buf.split('\n'); buf = lines.pop() || ''
-      for (const l of lines) { if (l.startsWith('data:')) streamingContent.value += l.substring(5) }
+      for (const l of lines) { if (l.startsWith('data:')) streamingContent.value += l.substring(5) + '\n' }
       await scrollDown()
     }
   } catch (e: any) {
     if (e.name !== 'AbortError') streamingContent.value += '\n\n*[连接中断]*'
   }
-  if (streamingContent.value) messages.value.push({ role:'ai', content:streamingContent.value })
+  if (streamingContent.value) {
+    // 清理流式产生的多余换行：连续两个以上换行=段落分隔（保留），单个换行=SSE 拼接痕迹（合并）
+    const cleaned = streamingContent.value
+      .replace(/([^\n])\n([^\n])/g, '$1$2')
+      .replace(/\n{3,}/g, '\n\n')
+    messages.value.push({ role:'ai', content: cleaned })
+  }
   streaming.value = false
   streamingContent.value = ''
   abortController = null
@@ -134,7 +183,12 @@ async function sendMessage() {
 async function stopGeneration() {
   abortController?.abort()
   try { await api.post('/knowledge/stop') } catch {}
-  if (streamingContent.value) messages.value.push({ role:'ai', content:streamingContent.value })
+  if (streamingContent.value) {
+    const cleaned = streamingContent.value
+      .replace(/([^\n])\n([^\n])/g, '$1$2')
+      .replace(/\n{3,}/g, '\n\n')
+    messages.value.push({ role:'ai', content: cleaned })
+  }
   streaming.value = false
   streamingContent.value = ''
   abortController = null
@@ -145,6 +199,53 @@ async function scrollDown() {
   await nextTick()
   if (chatAreaRef.value) chatAreaRef.value.scrollTop = chatAreaRef.value.scrollHeight
 }
+
+/** 加载历史记录（入口 + 上滑翻页） */
+async function loadHistory() {
+  if (loadingHistory.value || !hasMoreHistory.value) return
+  loadingHistory.value = true
+  const prevScrollHeight = chatAreaRef.value?.scrollHeight || 0
+  try {
+    const res: any = await api.get('/knowledge/history', {
+      params: { beforeId: oldestId, limit: 20 }
+    })
+    const records = res.data?.records || []
+    hasMoreHistory.value = res.data?.hasMore || false
+
+    if (records.length > 0) {
+      // 后端返回按时间倒序 → 反转成正序后加到 messages 前面
+      const newMsgs = records.reverse().map((r: any) => ({
+        role: r.role as 'user' | 'ai',
+        content: r.content,
+      }))
+      messages.value = [...newMsgs, ...messages.value]
+      oldestId = records[0]?.id || null // 取原始倒序的第一条（最旧的）作为下次游标
+      // 保持滚动位置
+      await nextTick()
+      if (chatAreaRef.value) {
+        chatAreaRef.value.scrollTop = chatAreaRef.value.scrollHeight - prevScrollHeight
+      }
+    }
+    historyLoaded.value = true
+  } catch (e) {
+    console.error('Failed to load history', e)
+  } finally {
+    loadingHistory.value = false
+  }
+}
+
+/** 监听滚动：滑到顶部时加载更多 */
+function onChatScroll() {
+  const el = chatAreaRef.value
+  if (!el || loadingHistory.value || !hasMoreHistory.value) return
+  if (el.scrollTop <= 20) {
+    loadHistory()
+  }
+}
+
+onMounted(() => {
+  loadHistory()
+})
 </script>
 
 <style lang="scss" scoped>
@@ -190,7 +291,7 @@ async function scrollDown() {
   .msg-avatar { width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
     &.ai { background:linear-gradient(135deg,#6C5CE7,#8B7CF0); }
   }
-  .msg-body { display:flex;flex-direction:column;max-width:68%; }
+  .msg-body { display:flex;flex-direction:column;max-width:82%; }
   .msg-sender { font-size:11px;color:var(--color-text-muted);margin-bottom:5px;padding:0 2px; }
   .msg-bubble.ai { padding:11px 17px;font-size:14px;line-height:1.65;border-radius:6px 16px 16px 16px;background:var(--color-bubble-ai);color:var(--color-text); }
 }
@@ -213,6 +314,14 @@ async function scrollDown() {
   &:hover:not(:disabled) { transform:scale(1.06);box-shadow:0 6px 20px rgba(108,92,231,.35); }
   &:disabled { opacity:.35;cursor:default;box-shadow:none; }
 }
+.btn-voice {
+  width: 40px; height: 44px; border-radius: 22px; border: 1.5px solid #e2e5ee;
+  background: var(--color-card); cursor: pointer; display: flex;
+  align-items: center; justify-content: center; transition: all var(--transition);
+  &:hover { border-color: var(--color-primary); }
+  &.recording { background: #f56c6c; border-color: #f56c6c; animation: pulse 1.2s infinite; }
+}
+@keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(245,108,108,.3); } 50% { box-shadow: 0 0 0 8px rgba(245,108,108,0); } }
 .btn-stop {
   display:flex;align-items:center;gap:6px;padding:0 22px;height:44px;border-radius:22px;border:none;
   background:linear-gradient(135deg,#6C5CE7,#7C6EF0);color:#fff;font-size:13px;font-weight:500;
@@ -220,4 +329,14 @@ async function scrollDown() {
   box-shadow:0 4px 14px rgba(108,92,231,.25);
   &:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(108,92,231,.35); }
 }
+</style>
+<style lang="scss" scoped>
+.global-disclaimer { font-size: 11px; color: var(--color-text-muted) !important; text-align: center; margin: 6px auto 0; max-width: 500px; line-height: 1.4; }
+.finance-notice { font-size: 11px; color: #e6a23c; text-align: left; margin: -12px 0 18px 46px; line-height: 1.4; }
+.streaming-bubble {
+  min-height: 20px;
+  :deep(.markdown-body) { font-size: 13px; }
+}
+.loading-more { text-align: center; font-size: 12px; color: var(--color-text-muted); padding: 8px 0; }
+.no-more { text-align: center; font-size: 11px; color: var(--color-text-muted); padding: 12px 0 4px; opacity: 0.6; }
 </style>

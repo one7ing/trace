@@ -15,7 +15,8 @@ public class WeeklyReportAgent extends AbstractAgent {
 
     private String cachedPrompt;
 
-    public WeeklyReportAgent(ChatClient.Builder chatClientBuilder, MemoryService memoryService) {
+    public WeeklyReportAgent(ChatClient.Builder chatClientBuilder,
+                             MemoryService memoryService) {
         super(chatClientBuilder, memoryService);
     }
 

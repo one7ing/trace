@@ -6,14 +6,12 @@ import com.trace.dto.DiaryRequest;
 import com.trace.entity.Diary;
 import com.trace.mapper.DiaryMapper;
 import com.trace.service.DiaryService;
-import com.trace.service.MemoryService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
 @Service
@@ -21,16 +19,12 @@ import java.util.stream.Collectors;
 public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryMapper diaryMapper;
-    private final MemoryService memoryService;
 
     @Override @Transactional
     public Diary create(Long userId, DiaryRequest request) {
         Diary diary = Diary.builder().userId(userId).title(request.getTitle())
                 .content(request.getContent()).moodTag(request.getMoodTag()).build();
         diaryMapper.insert(diary);
-        try {
-            memoryService.saveLongTermMemory(userId, "【日记】" + request.getTitle() + " | 心情：" + request.getMoodTag() + " | " + request.getContent(), "diary", diary.getId());
-        } catch (Exception e) { log.error("Failed to save diary vector", e); }
         return diary;
     }
 

@@ -46,7 +46,7 @@ onMounted(() => {
     }
   }
 
-  .msg-body { display: flex; flex-direction: column; max-width: 68%; }
+  .msg-body { display: flex; flex-direction: column; max-width: 82%; }
   .msg-sender { font-size: 11px; color: #aaa; margin-bottom: 4px; padding: 0 4px; }
 
   .msg-bubble {

@@ -9,7 +9,6 @@ import com.trace.entity.InterviewRecord;
 import com.trace.mapper.InterviewQuestionDetailMapper;
 import com.trace.mapper.InterviewRecordMapper;
 import com.trace.service.InterviewService;
-import com.trace.service.MemoryService;
 import com.trace.service.PdfService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -33,7 +32,6 @@ public class InterviewServiceImpl implements InterviewService {
     private final RedisTemplate<String, Object> redisTemplate;
     private final InterviewRecordMapper recordMapper;
     private final InterviewQuestionDetailMapper detailMapper;
-    private final MemoryService memoryService;
     private final PdfService pdfService;
 
     private static final String SESSION_KEY_PREFIX = "interview:session:";
@@ -83,7 +81,6 @@ public class InterviewServiceImpl implements InterviewService {
             BigDecimal avg = ((List<BigDecimal>) s.get("scores")).stream().reduce(BigDecimal.ZERO, BigDecimal::add).divide(new BigDecimal(((List<BigDecimal>) s.get("scores")).size()), 2, RoundingMode.HALF_UP);
             Long rid = saveRecord(s, avg); r.put("recordId", rid); r.put("avgScore", avg);
             redisTemplate.delete(SESSION_KEY_PREFIX + sessionId);
-            saveMemory(s, avg);
         } else {
             Map<String, Object> nq = generateQuestion((String) s.get("industry"), (List<String>) s.get("skills"));
             qs.add(nq); r.put("isLast", false); r.put("nextQuestion", nq.get("question"));
@@ -161,9 +158,4 @@ public class InterviewServiceImpl implements InterviewService {
     @Override
     @SuppressWarnings("unchecked") public Flux<String> submitAnswerStream(String sid, InterviewAnswerRequest req) { Map<String, Object> r = submitAnswer(sid, req);
         return Flux.just(r.toString()); }
-
-    @SuppressWarnings("unchecked")
-    private void saveMemory(Map<String, Object> s, BigDecimal avg) {
-        try { memoryService.saveLongTermMemory(((Number) s.get("userId")).longValue(), String.format("【面试】行业：%s | 技能：%s | 平均分：%s", s.get("industry"), String.join("、", (List<String>) s.get("skills")), avg), "interview", null); } catch (Exception e) { log.error("save memory error", e); }
-    }
 }

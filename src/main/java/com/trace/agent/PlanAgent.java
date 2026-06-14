@@ -15,7 +15,8 @@ public class PlanAgent extends AbstractAgent {
 
     private String cachedPrompt;
 
-    public PlanAgent(ChatClient.Builder chatClientBuilder, MemoryService memoryService) {
+    public PlanAgent(ChatClient.Builder chatClientBuilder,
+                     MemoryService memoryService) {
         super(chatClientBuilder, memoryService);
     }
 

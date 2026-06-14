@@ -1,0 +1,95 @@
+spring:
+  application:
+    name: trace
+  threads:
+    virtual:
+      enabled: true
+  servlet:
+    multipart:
+      max-file-size: 500MB
+      max-request-size: 500MB
+
+  # Spring AI Alibaba - 阿里云百炼 DashScope
+  ai:
+    dashscope:
+      api-key: ${DASHSCOPE_API_KEY}
+      chat:
+        options:
+          model: qwen-plus
+      embedding:
+        options:
+          model: text-embedding-v3
+    # PgVectorStore 初始化
+    vectorstore:
+      pgvector:
+        initialize-schema: true
+
+    # MCP 客户端配置 (stdio 模式)
+    mcp:
+      client:
+        stdio:
+          servers-configuration: classpath:mcp-servers.json
+
+  # PostgreSQL + PgVector
+  datasource:
+    url: jdbc:postgresql://localhost:5432/postgres
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:123456}
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+
+  # MyBatis-Plus
+  mybatis-plus:
+    mapper-locations: classpath:mapper/*.xml
+    configuration:
+      log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+    global-config:
+      db-config:
+        id-type: auto
+        logic-delete-field: deleted
+        logic-delete-value: 1
+        logic-not-delete-value: 0
+
+  # Redis
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+
+  # RabbitMQ 异步消息
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:trace}
+    password: ${RABBITMQ_PASS:123456}
+    listener:
+      simple:
+        auto-startup: true
+        concurrency: 2
+        max-concurrency: 5
+
+# MinIO 对象存储
+minio:
+  endpoint: ${MINIO_ENDPOINT:http://localhost:9000}
+  access-key: ${MINIO_ACCESS_KEY:admin}
+  secret-key: ${MINIO_SECRET_KEY:qwer1234}
+  bucket: trace-reports
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:trace-jwt-secret-key-change-in-production}
+  expiration: 604800000 # 7 days in ms
+
+# 日志
+logging:
+  level:
+    com.trace: DEBUG
+    org.springframework.ai: DEBUG
+  pattern:
+    console: "%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# 服务器
+server:
+  port: ${SERVER_PORT:8080}

@@ -2,6 +2,7 @@ package com.trace.service.impl;
 
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.trace.agent.MemoryExtractAgent;
 import com.trace.entity.*;
 import com.trace.mapper.*;
 import com.trace.service.MemoryService;
@@ -24,6 +25,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
     private final ChatClient.Builder chatClientBuilder;
     private final MemoryService memoryService;
+    private final MemoryExtractAgent memoryExtractAgent;
     private final PdfService pdfService;
     private final WeeklyReportMapper reportMapper;
     private final DiaryMapper diaryMapper;
@@ -44,7 +46,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
         List<Diary> diaries = diaryMapper.findByUserIdAndCreatedAtBetween(userId, ws.atStartOfDay(), we.atTime(LocalTime.MAX));
         List<InterviewRecord> interviews = interviewRecordMapper.findByUserIdAndCompletedAtBetween(userId, ws.atStartOfDay(), we.atTime(LocalTime.MAX));
-        List<LongTermMemory> mems = memoryService.getRecentMemories(userId, List.of("knowledge"), 20);
+        List<LongTermMemory> mems = memoryService.getRecentMemories(userId, 20);
 
         StringBuilder ctx = new StringBuilder();
         ctx.append("## 本周日记（").append(diaries.size()).append("篇）\n");
@@ -60,6 +62,18 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
                 .summary(content.length() > 200 ? content.substring(0, 200) + "..." : content)
                 .fullContent(content).reportUrl(url).build();
         reportMapper.insert(r);
+
+        // 周报生成后自动提取长期记忆
+        try {
+            int extracted = memoryExtractAgent.extractAndSave(
+                    userId, content, "weekly_report");
+            log.info("Weekly report memory extracted: userId={}, count={}",
+                    userId, extracted);
+        } catch (Exception e) {
+            log.warn("Memory extraction after weekly report failed: userId={}",
+                    userId, e);
+        }
+
         return r;
     }
 

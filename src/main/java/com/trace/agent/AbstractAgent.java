@@ -22,7 +22,8 @@ public abstract class AbstractAgent implements Agent {
     /** 全局取消令牌 —— key: userId, value: 是否取消 */
     public static final ConcurrentMap<Long, AtomicBoolean> CANCEL_MAP = new ConcurrentHashMap<>();
 
-    protected AbstractAgent(ChatClient.Builder chatClientBuilder, MemoryService memoryService) {
+    protected AbstractAgent(ChatClient.Builder chatClientBuilder,
+                             MemoryService memoryService) {
         this.chatClientBuilder = chatClientBuilder;
         this.memoryService = memoryService;
     }
@@ -41,7 +42,7 @@ public abstract class AbstractAgent implements Agent {
     }
 
     protected List<com.trace.entity.LongTermMemory> searchMemory(Long userId, String query, int limit) {
-        return memoryService.retrieveMemories(userId, query, limit);
+        return memoryService.getRecentMemories(userId, limit);
     }
 
     /** 构建对话上下文 */

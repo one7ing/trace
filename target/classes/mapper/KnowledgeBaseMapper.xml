@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trace.mapper.KnowledgeBaseMapper">
+
+    <!-- 混合检索：向量相似度(0.7) + 全文 ts_rank(0.3) -->
+    <select id="hybridSearch" resultType="org.springframework.ai.document.Document">
+        SELECT id,
+               content,
+               metadata,
+               (1 - (embedding &lt;=&gt; #{queryVec}::vector)) * 0.7
+               + COALESCE(
+                     ts_rank(to_tsvector('simple', content),
+                             to_tsquery('simple', #{tsQuery})),
+                     0
+                 ) * 0.3 AS hybrid_score
+        FROM public.vector_store
+        WHERE (1 - (embedding &lt;=&gt; #{queryVec}::vector)) >= 0.6
+        <if test="category != null and category != ''">
+            AND metadata ->> 'knowledgeType' = #{category}
+        </if>
+        ORDER BY hybrid_score DESC
+        LIMIT #{topK}
+    </select>
+
+    <!-- 基础查询 -->
+    <select id="findByUserIdAndType" resultType="com.trace.entity.KnowledgeBase">
+        SELECT * FROM knowledge_bases
+        WHERE user_id = #{userId} AND knowledge_type = #{type}
+        ORDER BY created_at DESC
+    </select>
+
+    <select id="findShared" resultType="com.trace.entity.KnowledgeBase">
+        SELECT * FROM knowledge_bases
+        WHERE knowledge_type IN ('INTERVIEW','WEB')
+        ORDER BY created_at DESC
+    </select>
+
+    <delete id="deleteAllByUserId">
+        DELETE FROM knowledge_bases
+        WHERE user_id = #{userId} AND knowledge_type = 'USER'
+    </delete>
+
+    <select id="findByFileName" resultType="com.trace.entity.KnowledgeBase">
+        SELECT * FROM knowledge_bases
+        WHERE user_id = #{userId} AND file_name = #{fileName}
+        ORDER BY chunk_index ASC
+    </select>
+
+    <!-- PgVector 向量插入 -->
+    <insert id="insertVector">
+        INSERT INTO knowledge_bases (id,
+                                     user_id,
+                                     file_name,
+                                     file_type,
+                                     content,
+                                     embedding,
+                                     knowledge_type,
+                                     chunk_index,
+                                     metadata,
+                                     created_at)
+        VALUES (#{id},
+                #{userId},
+                #{fileName},
+                #{fileType},
+                #{content},
+                #{vecStr}::vector,
+                #{knowledgeType},
+                #{chunkIdx},
+                '{}'::jsonb,
+                CURRENT_TIMESTAMP)
+    </insert>
+
+    <!-- 向量相似度搜索（全类型） -->
+    <select id="similaritySearchAll" resultType="com.trace.entity.KnowledgeBase">
+        SELECT *
+        FROM knowledge_bases
+        WHERE knowledge_type = #{knowledgeType}
+        ORDER BY embedding &lt;=&gt; #{vecStr}::vector
+        LIMIT #{limit}
+    </select>
+
+    <!-- 向量相似度搜索（仅用户） -->
+    <select id="similaritySearchUser" resultType="com.trace.entity.KnowledgeBase">
+        SELECT *
+        FROM knowledge_bases
+        WHERE user_id = #{userId}
+          AND knowledge_type = 'USER'
+        ORDER BY embedding &lt;=&gt; #{vecStr}::vector
+        LIMIT #{limit}
+    </select>
+
+</mapper>

@@ -17,7 +17,6 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class PlanGenerationConsumer {
     private final StudyPlanMapper planMapper;
-    private final MemoryService memoryService;
     private final PdfService pdfService;
     private final List<Agent> agents;
 
@@ -34,7 +33,6 @@ public class PlanGenerationConsumer {
             String content = pa != null ? pa.handle("请为以下目标制定详细中文学习计划：\n" + goal, userId) : "服务暂不可用";
             String url = pdfService.generateAndUpload("学习计划_" + goal, content);
             plan.setPlanContent(content); plan.setPlanUrl(url); planMapper.updateById(plan);
-            memoryService.saveLongTermMemory(userId, "【学习计划】目标：" + goal, "plan", planId);
             log.info("RabbitMQ: plan completed planId={}", planId);
         } catch (Exception e) { log.error("RabbitMQ: plan failed planId={}", planId, e); plan.setPlanContent("生成失败：" + e.getMessage()); planMapper.updateById(plan); }
     }

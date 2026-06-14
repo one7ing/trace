@@ -13,6 +13,7 @@
   --color-text-muted: #9a9cb0;
   --color-bg: #f5f4fe;
   --color-surface: #ffffff;
+  --color-sidebar-bg: #ffffff;
   --color-card: #ffffff;
   --color-input: #ffffff;
   --color-border: #e2e5ee;
@@ -52,6 +53,7 @@ html.dark {
   --color-text-secondary: #989ab0;
   --color-text-muted: #6e7088;
   --color-bg: #1a1b2e;
+  --color-sidebar-bg: #212236;
   --color-surface: #212236;
   --color-card: #26273c;
   --color-input: #2a2b42;
@@ -111,17 +113,98 @@ html, body, #app {
 .el-pagination button, .el-pager li { background: var(--color-card) !important; color: var(--color-text-secondary) !important; border-color: var(--color-border) !important; }
 .el-timeline-item__timestamp { color: var(--color-text-muted) !important; }
 
-// Markdown
+// Markdown —— 让 AI 输出整洁可读
 .markdown-body {
-  line-height: 1.75; color: var(--color-text); font-size: 14px;
-  h1,h2,h3 { margin-top:18px;margin-bottom:8px;font-weight:600;color:var(--color-text); }
-  h2 { font-size:17px;border-bottom:1px solid var(--color-border);padding-bottom:4px; }
-  h3 { font-size:15px; }
-  p { margin:8px 0; }
-  ul,ol { padding-left:22px;margin:8px 0; }
-  code { background:var(--color-bubble-ai);padding:2px 6px;border-radius:4px;font-size:13px; }
-  pre { background:var(--color-bubble-ai);padding:16px;border-radius:var(--radius-sm);overflow-x:auto;margin:12px 0;border:1px solid var(--color-border); code { background:none;padding:0; } }
-  blockquote { border-left:3px solid var(--color-primary);padding:8px 14px;color:var(--color-text-secondary);margin:12px 0;background:var(--color-primary-bg);border-radius:0 var(--radius-sm) var(--radius-sm) 0; }
-  a { color:var(--color-primary);text-decoration:none; &:hover { text-decoration:underline; } }
-  hr { border:none;border-top:1px solid var(--color-border);margin:18px 0; }
+  line-height: 1.65; color: var(--color-text); font-size: 13px;
+  word-break: break-word;
+
+  // 标题
+  h1,h2,h3,h4,h5,h6 {
+    margin-top: 18px; margin-bottom: 8px; font-weight: 650;
+    color: var(--color-text); line-height: 1.35;
+  }
+  h1 { font-size: 17px; border-bottom: 2px solid var(--color-border); padding-bottom: 6px; }
+  h2 { font-size: 15px; border-bottom: 1px solid var(--color-border); padding-bottom: 4px; }
+  h3 { font-size: 14px; }
+  h4 { font-size: 13px; color: var(--color-text-secondary); }
+
+  // 段落
+  p { margin: 8px 0; }
+  p:first-child { margin-top: 0; }
+  p:last-child { margin-bottom: 0; }
+
+  // 加粗 / 斜体
+  strong { font-weight: 650; color: var(--color-text); }
+  em { font-style: italic; }
+
+  // 列表
+  ul, ol {
+    padding-left: 22px; margin: 8px 0;
+    li { margin: 3px 0; line-height: 1.65; }
+    ul, ol { margin: 2px 0; }
+  }
+  ul li::marker { color: var(--color-primary); }
+
+  // 行内代码
+  code {
+    background: var(--color-primary-bg); color: #e05d6f;
+    padding: 1px 6px; border-radius: 4px; font-size: 12px;
+    font-family: 'SF Mono','Fira Code','Cascadia Code',Consolas,monospace;
+    white-space: nowrap;
+  }
+
+  // 代码块
+  pre {
+    background: #1e1e2e; color: #cdd6f4;
+    padding: 16px 20px; border-radius: var(--radius-sm);
+    overflow-x: auto; margin: 14px 0;
+    border: 1px solid var(--color-border);
+    line-height: 1.55; font-size: 12.5px;
+    code {
+      background: none; color: inherit; padding: 0; border-radius: 0;
+      font-size: inherit; white-space: pre;
+    }
+  }
+
+  // 引用块
+  blockquote {
+    border-left: 3px solid var(--color-primary);
+    padding: 8px 14px; margin: 12px 0;
+    color: var(--color-text-secondary);
+    background: var(--color-primary-bg);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    p { margin: 4px 0; }
+  }
+
+  // 链接
+  a {
+    color: var(--color-primary); text-decoration: none;
+    &:hover { text-decoration: underline; }
+  }
+
+  // 分割线
+  hr {
+    border: none; border-top: 1px solid var(--color-border);
+    margin: 20px 0;
+  }
+
+  // 表格
+  table {
+    width: 100%; border-collapse: collapse; margin: 14px 0;
+    font-size: 12px;
+    th, td {
+      border: 1px solid var(--color-border);
+      padding: 9px 14px; text-align: left;
+    }
+    th {
+      background: var(--color-primary-bg);
+      font-weight: 650; color: var(--color-text);
+    }
+    tr:nth-child(even) td {
+      background: var(--color-bubble-ai);
+    }
+  }
+
+  // 图片
+  img { max-width: 100%; border-radius: var(--radius-sm); margin: 8px 0; }
 }

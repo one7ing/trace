@@ -15,7 +15,8 @@ public class InterviewAgent extends AbstractAgent {
 
     private String cachedPrompt;
 
-    public InterviewAgent(ChatClient.Builder chatClientBuilder, MemoryService memoryService) {
+    public InterviewAgent(ChatClient.Builder chatClientBuilder,
+                          MemoryService memoryService) {
         super(chatClientBuilder, memoryService);
     }
 

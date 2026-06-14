@@ -28,7 +28,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
 
     @Override
     public Flux<String> chatStream(Long userId, String message, String domain) {
-        var memories = memoryService.retrieveMemories(userId, message, 5);
+        var memories = memoryService.getRecentMemories(userId, 5);
 
         StringBuilder contextBuilder = new StringBuilder(SYSTEM_PROMPT);
 
@@ -49,13 +49,7 @@ public class KnowledgeServiceImpl implements KnowledgeService {
                 .advisors(new SimpleLoggerAdvisor())
                 .stream()
                 .content()
-                .doOnComplete(() -> memoryService.saveChatContext(userId, "user", message))
+                .doOnComplete(() -> memoryService.saveChatHistory(userId, "user", message))
                 .doOnError(e -> log.error("Knowledge chat error", e));
-    }
-
-    @Override
-    public void saveKnowledgeMemory(Long userId, String question, String summary) {
-        String content = "【知识问答】Q: " + question + " | A: " + summary;
-        memoryService.saveLongTermMemory(userId, content, "knowledge", null);
     }
 }

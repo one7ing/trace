@@ -15,7 +15,8 @@ public class DiaryAgent extends AbstractAgent {
 
     private String cachedPrompt;
 
-    public DiaryAgent(ChatClient.Builder chatClientBuilder, MemoryService memoryService) {
+    public DiaryAgent(ChatClient.Builder chatClientBuilder,
+                      MemoryService memoryService) {
         super(chatClientBuilder, memoryService);
     }
 
