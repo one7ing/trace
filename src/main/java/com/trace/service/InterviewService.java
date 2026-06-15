@@ -15,4 +15,6 @@ public interface InterviewService {
     IPage<InterviewRecord> getRecords(Long userId, int page, int size);
     InterviewRecord getRecordDetail(Long recordId);
     String generateReport(Long recordId);
+    void abortInterview(String sessionId);
+    void deleteRecord(Long id);
 }

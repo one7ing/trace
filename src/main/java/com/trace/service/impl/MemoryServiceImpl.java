@@ -6,6 +6,7 @@ import com.trace.mapper.ChatHistoryMapper;
 import com.trace.mapper.LongTermMemoryMapper;
 import com.trace.service.MemoryService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,38 +16,54 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 双层记忆服务实现 —— PostgreSQL 会话历史 + PostgreSQL 长期记忆。
+ * 三层记忆服务实现：
+ * <p>
+ * Redis 短期上下文（Prompt 注入，10-20 条）<br>
+ * PostgreSQL 会话历史（前端展示，分页查询，≤500 条）<br>
+ * PostgreSQL 长期记忆（特征摘要，≤30 条）
+ * </p>
  */
 @Slf4j
 @Service
 public class MemoryServiceImpl implements MemoryService {
 
+    private final RedisTemplate<String, Object> redisTemplate;
     private final ChatHistoryMapper chatHistoryMapper;
     private final LongTermMemoryMapper memoryMapper;
 
     private static final int MAX_CHAT_HISTORY = 500;
+    private static final int MAX_SHORT_TERM = 20;
     private static final int MAX_MEMORIES = 30;
-    private static final int CONTEXT_ROUNDS = 10;
+    private static final String REDIS_KEY_PREFIX = "chat:short:";
 
-    public MemoryServiceImpl(ChatHistoryMapper chatHistoryMapper,
+    public MemoryServiceImpl(RedisTemplate<String, Object> redisTemplate,
+                              ChatHistoryMapper chatHistoryMapper,
                               LongTermMemoryMapper memoryMapper) {
+        this.redisTemplate = redisTemplate;
         this.chatHistoryMapper = chatHistoryMapper;
         this.memoryMapper = memoryMapper;
     }
 
-    // ==================== 会话历史 ====================
+    // ==================== 会话历史（PG，前端展示用） ====================
 
     @Override
     @Transactional
     public void saveChatHistory(Long userId, String role, String content) {
-        // 容量控制
+        // 1. Redis 短期上下文（Prompt 注入用）
+        String key = REDIS_KEY_PREFIX + userId;
+        redisTemplate.opsForList().rightPush(key,
+                Map.of("role", role, "content", content));
+        Long size = redisTemplate.opsForList().size(key);
+        if (size != null && size > MAX_SHORT_TERM) {
+            redisTemplate.opsForList().trim(key, -MAX_SHORT_TERM, -1);
+        }
+
+        // 2. PG 会话历史（前端展示用）
         int count = chatHistoryMapper.countByUserId(userId);
         if (count >= MAX_CHAT_HISTORY) {
             int excess = count - MAX_CHAT_HISTORY + 1;
             chatHistoryMapper.deleteOldestByUserId(userId, excess);
-            log.debug("Trimmed {} oldest chat records for userId={}", excess, userId);
         }
-
         ChatHistory record = ChatHistory.builder()
                 .userId(userId)
                 .role(role)
@@ -68,21 +85,26 @@ public class MemoryServiceImpl implements MemoryService {
         return chatHistoryMapper.findBefore(userId, beforeId, limit);
     }
 
+    // ==================== 短期上下文（Redis，Prompt 注入用） ====================
+
     @Override
+    @SuppressWarnings("unchecked")
     public List<Map<String, String>> getChatContext(Long userId) {
-        // 取最近 10 轮（20 条），按时间正序返回
-        List<ChatHistory> records = chatHistoryMapper.findRecentByUserId(
-                userId, CONTEXT_ROUNDS * 2);
-        // 反转成正序
-        List<Map<String, String>> result = new ArrayList<>();
-        for (int i = records.size() - 1; i >= 0; i--) {
-            ChatHistory r = records.get(i);
-            Map<String, String> map = new LinkedHashMap<>();
-            map.put("role", r.getRole());
-            map.put("content", r.getContent());
-            result.add(map);
+        String key = REDIS_KEY_PREFIX + userId;
+        try {
+            List<Object> entries = redisTemplate.opsForList()
+                    .range(key, 0, -1);
+            if (entries == null || entries.isEmpty()) {
+                return List.of();
+            }
+            return entries.stream()
+                    .map(e -> (Map<String, String>) e)
+                    .toList();
+        } catch (Exception e) {
+            log.debug("Redis deserialize failed, clearing key: {}", key, e);
+            redisTemplate.delete(key);
+            return List.of();
         }
-        return result;
     }
 
     // ==================== 长期记忆 ====================
@@ -94,13 +116,11 @@ public class MemoryServiceImpl implements MemoryService {
             log.debug("Duplicate memory skipped: userId={}", userId);
             return;
         }
-
         int currentCount = memoryMapper.countByUserId(userId);
         if (currentCount >= MAX_MEMORIES) {
             int excess = currentCount - MAX_MEMORIES + 1;
             memoryMapper.deleteOldestByUserId(userId, excess);
         }
-
         LongTermMemory memory = LongTermMemory.builder()
                 .userId(userId)
                 .content(content)

@@ -88,10 +88,10 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     @Override
     public List<KnowledgeBase> list(Long userId, String knowledgeType) {
         LambdaQueryWrapper<KnowledgeBase> w = new LambdaQueryWrapper<>();
-        if ("USER".equals(knowledgeType))
-            w.eq(KnowledgeBase::getUserId, userId).eq(KnowledgeBase::getKnowledgeType, "USER");
-        else
-            w.in(KnowledgeBase::getKnowledgeType, List.of("INTERVIEW", "WEB"));
+        w.eq(KnowledgeBase::getUserId, userId);
+        if (knowledgeType != null) {
+            w.eq(KnowledgeBase::getKnowledgeType, knowledgeType);
+        }
         w.orderByDesc(KnowledgeBase::getCreatedAt);
         List<KnowledgeBase> all = kbMapper.selectList(w);
         // 按文件名去重，每个文件只返回一条

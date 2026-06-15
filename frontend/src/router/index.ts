@@ -61,11 +61,6 @@ const routes: RouteRecordRaw[] = [
     component: () => import('@/views/KnowledgeBase.vue'),
   },
   {
-    path: '/goal',
-    name: 'GoalTracker',
-    component: () => import('@/views/GoalTracker.vue'),
-  },
-  {
     path: '/login',
     name: 'Login',
     component: () => import('@/views/Login.vue'),

@@ -62,18 +62,16 @@ public abstract class AbstractAgent implements Agent {
     @Override
     public reactor.core.publisher.Flux<String> handleStream(String userInput, Long userId) {
         AtomicBoolean cancelled = CANCEL_MAP.computeIfAbsent(userId, k -> new AtomicBoolean(false));
-        // 重置取消标志
         cancelled.set(false);
 
-        String context = buildContext(userId, userInput);
         ChatClient chatClient = chatClientBuilder.build();
 
         return chatClient.prompt()
-                .system(loadSystemPrompt() + "\n\n" + context)
+                .system(loadSystemPrompt())
                 .user(userInput)
                 .stream()
                 .content()
-                .takeUntil(s -> cancelled.get())  // 支持取消
+                .takeUntil(s -> cancelled.get())
                 .doOnCancel(() -> log.info("Agent stream cancelled: userId={}, agent={}", userId, name()))
                 .doOnComplete(() -> log.debug("Agent stream completed: userId={}, agent={}", userId, name()))
                 .doOnError(e -> log.error("Agent stream error: userId={}, agent={}", userId, name(), e));
@@ -82,11 +80,10 @@ public abstract class AbstractAgent implements Agent {
     /** 公共非流式处理 */
     @Override
     public String handle(String userInput, Long userId) {
-        String context = buildContext(userId, userInput);
         ChatClient chatClient = chatClientBuilder.build();
         try {
             return chatClient.prompt()
-                    .system(loadSystemPrompt() + "\n\n" + context)
+                    .system(loadSystemPrompt())
                     .user(userInput)
                     .call()
                     .content();

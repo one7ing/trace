@@ -45,6 +45,14 @@ public class InterviewController {
         }
 
         // 查看面试详情
+        @GetMapping("/records/{id}")
+        public ResponseEntity<ApiResponse<InterviewRecord>> detailShort(
+                @PathVariable Long id) {
+            return ResponseEntity.ok(
+                    ApiResponse.success(interviewService.getRecordDetail(id)));
+        }
+
+        // 查看面试详情
         @GetMapping("/records/{id}/details")
         public ResponseEntity<ApiResponse<InterviewRecord>> detail(
                 @PathVariable Long id) {
@@ -58,6 +66,22 @@ public class InterviewController {
                 @PathVariable Long id) {
             return ResponseEntity.ok(
                     ApiResponse.success(interviewService.generateReport(id)));
+        }
+
+        // 中断面试
+        @PostMapping("/{sessionId}/abort")
+        public ResponseEntity<ApiResponse<String>> abort(
+                @PathVariable("sessionId") String sessionId) {
+            interviewService.abortInterview(sessionId);
+            return ResponseEntity.ok(ApiResponse.success("面试已中断"));
+        }
+
+        // 删除面试记录
+        @DeleteMapping("/records/{id}")
+        public ResponseEntity<ApiResponse<String>> deleteRecord(
+                @PathVariable Long id) {
+            interviewService.deleteRecord(id);
+            return ResponseEntity.ok(ApiResponse.success("记录已删除"));
         }
 
         // 流式开始面试

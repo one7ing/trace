@@ -5,7 +5,7 @@
         <span>{{ diary.title }}</span>
       </template>
       <template #extra>
-        <el-button text type="primary" @click="$router.push(`/diary/write`)" :state="{ id: diary.id }">
+        <el-button v-if="isToday(diary.createdAt)" text type="primary" @click="$router.push(`/diary/write?id=${diary.id}`)">
           编辑
         </el-button>
         <el-popconfirm title="确定删除这篇日记？" @confirm="handleDelete">
@@ -55,6 +55,11 @@ function moodTagType(mood: string) {
     '充实': 'warning', '疲惫': 'info', '感恩': 'danger',
   }
   return map[mood] || 'info'
+}
+
+function isToday(dateStr: string) {
+  if (!dateStr) return false
+  return new Date(dateStr).toDateString() === new Date().toDateString()
 }
 
 async function fetchDiary() {

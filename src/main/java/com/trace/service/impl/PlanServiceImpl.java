@@ -5,6 +5,7 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.trace.config.RabbitMQConfig;
 import com.trace.entity.StudyPlan;
 import com.trace.mapper.StudyPlanMapper;
+import com.trace.service.PdfService;
 import com.trace.service.PlanService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -12,6 +13,7 @@ import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -23,8 +25,10 @@ public class PlanServiceImpl implements PlanService {
 
     private final StudyPlanMapper planMapper;
     private final RabbitTemplate rabbitTemplate;
+    private final PdfService pdfService;
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public StudyPlan startGeneration(Long userId, String goal) {
         StudyPlan p = StudyPlan.builder().userId(userId).goal(goal).planContent("正在生成中...").build();
         planMapper.insert(p);
@@ -52,6 +56,40 @@ public class PlanServiceImpl implements PlanService {
     @Override
     public boolean isCompleted(Long id) {
         StudyPlan p = getById(id);
-        return p.getPlanUrl() != null && !"正在生成中...".equals(p.getPlanContent());
+        if (p.getPlanUrl() != null && !p.getPlanUrl().isEmpty()
+                && !"正在生成中...".equals(p.getPlanContent())) {
+            return true;
+        }
+        if (p.getPlanContent() != null && p.getPlanContent().startsWith("生成失败")) {
+            return true;
+        }
+        return false;
+    }
+
+    @Override
+    @Transactional
+    public void deletePlan(Long id) {
+        planMapper.deleteById(id);
+    }
+
+    @Override
+    @Transactional
+    public StudyPlan updatePlan(Long id, String planContent) {
+        StudyPlan p = getById(id);
+        p.setPlanContent(planContent);
+        p.setUpdatedAt(LocalDateTime.now());
+        planMapper.updateById(p);
+        return p;
+    }
+
+    @Override
+    @Transactional
+    public String regeneratePdf(Long id) {
+        StudyPlan p = getById(id);
+        String url = pdfService.generateAndUpload("学习计划_" + p.getGoal(), p.getPlanContent());
+        p.setPlanUrl(url);
+        p.setUpdatedAt(LocalDateTime.now());
+        planMapper.updateById(p);
+        return url;
     }
 }

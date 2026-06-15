@@ -54,7 +54,6 @@ com\trace\dto\InterviewAnswerRequest.class
 com\trace\entity\InterviewRecord.class
 com\trace\exception\GlobalExceptionHandler.class
 com\trace\controller\KnowledgeBaseController.class
-com\trace\tool\DateTimeTool.class
 com\trace\controller\InterviewController.class
 com\trace\service\impl\PdfServiceImpl.class
 com\trace\entity\WeeklyReport.class

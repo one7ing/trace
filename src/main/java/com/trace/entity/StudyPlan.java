@@ -18,4 +18,6 @@ public class StudyPlan {
     private String planUrl;
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
+    @TableField("updated_at")
+    private LocalDateTime updatedAt;
 }

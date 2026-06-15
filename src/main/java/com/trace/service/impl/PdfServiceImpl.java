@@ -1,5 +1,8 @@
 package com.trace.service.impl;
 
+import com.itextpdf.io.font.PdfEncodings;
+import com.itextpdf.kernel.font.PdfFont;
+import com.itextpdf.kernel.font.PdfFontFactory;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
@@ -10,6 +13,7 @@ import io.minio.BucketExistsArgs;
 import io.minio.MakeBucketArgs;
 import io.minio.MinioClient;
 import io.minio.PutObjectArgs;
+import io.minio.SetBucketPolicyArgs;
 import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -28,16 +32,37 @@ public class PdfServiceImpl implements PdfService {
     private final MinioClient minioClient;
     private final MinioConfig minioConfig;
 
+    private PdfFont chineseFont;
+
     @Override
     @PostConstruct
     public void ensureBucketExists() {
         try {
+            String bucket = minioConfig.getBucket();
             boolean found = minioClient.bucketExists(
-                    BucketExistsArgs.builder().bucket(minioConfig.getBucket()).build());
+                    BucketExistsArgs.builder().bucket(bucket).build());
             if (!found) {
-                minioClient.makeBucket(MakeBucketArgs.builder().bucket(minioConfig.getBucket()).build());
-                log.info("Created MinIO bucket: {}", minioConfig.getBucket());
+                minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
+                log.info("Created MinIO bucket: {}", bucket);
             }
+            // 设置桶策略为公开读，允许浏览器直接访问 PDF
+            String policy = """
+                {
+                  "Version": "2012-10-17",
+                  "Statement": [
+                    {
+                      "Effect": "Allow",
+                      "Principal": {"AWS": ["*"]},
+                      "Action": ["s3:GetObject"],
+                      "Resource": ["arn:aws:s3:::%s/*"]
+                    }
+                  ]
+                }
+                """.formatted(bucket);
+            minioClient.setBucketPolicy(
+                    io.minio.SetBucketPolicyArgs.builder()
+                            .bucket(bucket).config(policy).build());
+            log.info("Set public-read policy on bucket: {}", bucket);
         } catch (Exception e) {
             log.error("Failed to ensure MinIO bucket exists", e);
         }
@@ -61,20 +86,53 @@ public class PdfServiceImpl implements PdfService {
         }
     }
 
+    private synchronized PdfFont getChineseFont() throws Exception {
+        if (chineseFont == null) {
+            try {
+                // 尝试 Windows SimSun 字体，IDENTITY_H 支持所有 Unicode
+                chineseFont = PdfFontFactory.createFont(
+                        "c:/windows/fonts/simsun.ttc,0",
+                        PdfEncodings.IDENTITY_H,
+                        PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+            } catch (Exception e) {
+                try {
+                    // 尝试 STSong 用 IDENTITY_H（不是 UniGB-UCS2-H）
+                    chineseFont = PdfFontFactory.createFont(
+                            "STSong-Light", PdfEncodings.IDENTITY_H,
+                            PdfFontFactory.EmbeddingStrategy.PREFER_EMBEDDED);
+                } catch (Exception e2) {
+                    // 最后回退
+                    log.warn("No Chinese font found, PDF may not render correctly");
+                    chineseFont = PdfFontFactory.createFont();
+                }
+            }
+        }
+        return chineseFont;
+    }
+
     private byte[] generatePdf(String title, String content) throws Exception {
+        PdfFont font = getChineseFont();
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         PdfDocument pdf = new PdfDocument(new PdfWriter(baos));
         Document document = new Document(pdf);
-        document.add(new Paragraph(title).setFontSize(18).setBold());
-        document.add(new Paragraph(" "));
+
+        document.add(new Paragraph(title).setFont(font).setFontSize(18));
+
         for (String line : content.split("\n")) {
-            if (line.startsWith("# ")) document.add(new Paragraph(line.substring(2)).setFontSize(16).setBold());
-            else if (line.startsWith("## ")) document.add(new Paragraph(line.substring(3)).setFontSize(14).setBold());
-            else if (line.startsWith("### ")) document.add(new Paragraph(line.substring(4)).setFontSize(12).setBold());
-            else if (!line.isBlank()) document.add(new Paragraph(line).setFontSize(10));
+            if (line.startsWith("# ")) {
+                document.add(new Paragraph(line.substring(2)).setFont(font).setFontSize(16));
+            } else if (line.startsWith("## ")) {
+                document.add(new Paragraph(line.substring(3)).setFont(font).setFontSize(14));
+            } else if (line.startsWith("### ")) {
+                document.add(new Paragraph(line.substring(4)).setFont(font).setFontSize(12));
+            } else if (line.startsWith("- ") || line.startsWith("* ")) {
+                document.add(new Paragraph("  " + line).setFont(font).setFontSize(9));
+            } else if (!line.isBlank()) {
+                document.add(new Paragraph(line).setFont(font).setFontSize(9));
+            }
         }
         document.add(new Paragraph(" "));
-        document.add(new Paragraph("由 Trace AI 生成").setFontSize(8).setItalic());
+        document.add(new Paragraph("由 Trace AI 生成").setFont(font).setFontSize(8));
         document.close();
         return baos.toByteArray();
     }

@@ -28,6 +28,4 @@ public class InterviewRecord {
     private String weakSkills;
     @TableField(value = "completed_at", fill = FieldFill.INSERT)
     private LocalDateTime completedAt;
-    @TableField(exist = false)
-    private List<InterviewQuestionDetail> questionDetails;
 }

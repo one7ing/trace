@@ -8,4 +8,7 @@ public interface PlanService {
     IPage<StudyPlan> list(Long userId, int page, int size);
     StudyPlan getById(Long id);
     boolean isCompleted(Long id);
+    void deletePlan(Long id);
+    StudyPlan updatePlan(Long id, String planContent);
+    String regeneratePdf(Long id);
 }

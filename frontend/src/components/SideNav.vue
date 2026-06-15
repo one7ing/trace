@@ -63,13 +63,6 @@
       <span>知识库</span>
     </router-link>
 
-    <router-link to="/goal" class="nav-item" :class="{ active: isActive('/goal') }">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
-        <circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>
-      </svg>
-      <span>目标</span>
-    </router-link>
-
     <div class="nav-divider"></div>
 
     <router-link to="/diary" class="nav-item" :class="{ active: isActive('/diary') }">

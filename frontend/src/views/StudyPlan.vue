@@ -34,7 +34,7 @@
       <div class="generating-placeholder">
         <el-icon class="is-loading" :size="32"><Loading /></el-icon>
         <p>AI 正在为你拆解目标、制定详细计划...</p>
-        <p class="hint">这通常需要 15-30 秒，完成后会自动通知你</p>
+        <p class="hint">正在通过 AI 拆解目标，请耐心等待...</p>
       </div>
     </el-card>
 
@@ -66,17 +66,38 @@
         <div class="history-header">
           <span class="history-goal">{{ plan.goal }}</span>
           <span class="history-date">{{ formatDate(plan.createdAt) }}</span>
-          <el-button text type="primary" size="small" @click="downloadPdf(plan.id)">
-            下载 PDF
-          </el-button>
+          <el-button text type="primary" size="small" @click="viewDetail(plan)">详情</el-button>
+          <el-button text size="small" @click="openEdit(plan)">编辑</el-button>
+          <el-button text type="primary" size="small" @click="downloadPdf(plan.id)">下载</el-button>
+          <el-popconfirm title="确定删除该计划？" @confirm="handleDelete(plan.id)">
+            <template #reference>
+              <el-button text type="danger" size="small">删除</el-button>
+            </template>
+          </el-popconfirm>
         </div>
       </el-card>
     </div>
+
+    <!-- 详情弹窗 -->
+    <el-dialog v-model="detailVisible" title="计划详情" width="720px" top="5vh" destroy-on-close>
+      <div class="detail-body">
+        <MarkdownRenderer :content="detailContent" />
+      </div>
+    </el-dialog>
+
+    <!-- 编辑弹窗 -->
+    <el-dialog v-model="editVisible" title="编辑计划" width="720px" top="5vh" destroy-on-close>
+      <el-input v-model="editContent" type="textarea" :rows="16" placeholder="编辑计划内容..." />
+      <template #footer>
+        <el-button @click="editVisible = false">取消</el-button>
+        <el-button type="primary" @click="saveEdit" :loading="saving">保存并重新生成 PDF</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted } from 'vue'
 import api from '@/api'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { ElMessage, ElNotification } from 'element-plus'
@@ -88,7 +109,16 @@ const loading = ref(false)
 const generatingPlan = ref<any>(null)
 const newPlan = ref<any>(null)
 const completedPlans = ref<any[]>([])
-let pollTimer: ReturnType<typeof setInterval> | null = null
+
+// 详情弹窗
+const detailVisible = ref(false)
+const detailContent = ref('')
+
+// 编辑弹窗
+const editVisible = ref(false)
+const editContent = ref('')
+const editPlanId = ref<number>(0)
+const saving = ref(false)
 
 function formatDate(dateStr: string) {
   if (!dateStr) return '-'
@@ -102,57 +132,58 @@ async function generatePlan() {
     const res: any = await api.post('/plan/generate', { goal: goal.value })
     const plan = res.data
 
-    // 立即显示占位卡片
+    // 立即显示占位卡片，建立 SSE 连接
     generatingPlan.value = plan
+    const planGoal = plan.goal || goal.value
     goal.value = ''
     ElMessage.info('计划生成任务已提交，正在后台处理...')
-
-    // 开始轮询状态
-    startPolling(plan.id)
+    startStreaming(plan.id, planGoal)
   } catch { /* handled */ }
   generating.value = false
 }
 
-function startPolling(planId: number) {
-  // 清除之前的轮询
-  if (pollTimer) clearInterval(pollTimer)
+function startStreaming(planId: number, goal: string) {
+  const token = localStorage.getItem('trace-token') || ''
+  const es = new EventSource(`/api/plan/${planId}/stream?token=${encodeURIComponent(token)}`)
 
-  pollTimer = setInterval(async () => {
-    try {
-      const res: any = await api.get(`/plan/${planId}/status`)
-      if (res.data?.completed) {
-        // 生成完成！
-        clearInterval(pollTimer!)
-        pollTimer = null
+  // 60 秒超时（匹配服务端 SseEmitter）
+  const timeout = setTimeout(() => {
+    es.close()
+    generatingPlan.value = null
+    ElMessage.warning('计划生成超时，正在后台处理中，请稍后刷新页面查看')
+  }, 60000)
 
-        // 移除生成中卡片，显示完成卡片
-        generatingPlan.value = null
-        newPlan.value = {
-          id: planId,
-          goal: res.data.planContent ? generatingPlan.value?.goal : '',
-          planContent: res.data.planContent,
-          planUrl: res.data.planUrl,
-        }
+  es.addEventListener('completed', (e: MessageEvent) => {
+    clearTimeout(timeout)
+    es.close()
+    generatingPlan.value = null
+    const d = JSON.parse(e.data)
 
-        // 弹窗通知
-        ElNotification({
-          title: '✅ 计划生成完毕',
-          message: '你的学习计划已生成，可以查看和下载 PDF 了。',
-          type: 'success',
-          duration: 5000,
-        })
-
-        // 同时更新完成卡片的目标（从已完成的列表获取）
-        const planRes: any = await api.get(`/plan/${planId}/status`)
-        if (newPlan.value) {
-          // goal 在 controller status 里没有，我们读一次完整 plan
-        }
-        fetchPlans()
-      }
-    } catch {
-      // 轮询失败，继续重试
+    if (d.planContent && d.planContent.startsWith('生成失败')) {
+      ElMessage.error('计划生成失败，请重试')
+      return
     }
-  }, 3000) // 每 3 秒轮询一次
+
+    newPlan.value = {
+      id: d.planId,
+      goal: d.goal || goal,
+      planContent: d.planContent || '',
+      planUrl: d.planUrl || '',
+    }
+    ElNotification({
+      title: '计划生成完毕',
+      message: '你的学习计划已生成，可以查看和下载 PDF 了。',
+      type: 'success',
+      duration: 5000,
+    })
+  })
+
+  es.onerror = () => {
+    clearTimeout(timeout)
+    es.close()
+    generatingPlan.value = null
+    ElMessage.warning('计划生成超时，请稍后刷新页面查看')
+  }
 }
 
 async function fetchPlans() {
@@ -160,9 +191,8 @@ async function fetchPlans() {
   try {
     const res: any = await api.get('/plan', { params: { page: 0, size: 20 } })
     const allPlans = res.data?.records || []
-    // 已经完成的计划（有 planUrl 且不是"正在生成中..."）
     completedPlans.value = allPlans.filter(
-      (p: any) => p.planUrl && p.planContent !== '正在生成中...'
+      (p: any) => p.planUrl && p.planUrl !== '' && p.planContent !== '正在生成中...'
     )
   } catch { /* handled */ }
   loading.value = false
@@ -171,17 +201,54 @@ async function fetchPlans() {
 async function downloadPdf(id: number) {
   try {
     const res: any = await api.get(`/plan/${id}/download`)
-    if (res.data) {
-      window.open(res.data, '_blank')
+    const url = res.data || res
+    if (url && typeof url === 'string') {
+      window.open(url, '_blank')
+    } else {
+      ElMessage.error('下载链接无效')
     }
-  } catch { /* handled */ }
+  } catch {
+    ElMessage.error('下载失败，请稍后重试')
+  }
+}
+
+function viewDetail(plan: any) {
+  detailContent.value = plan.planContent || ''
+  detailVisible.value = true
+}
+
+function openEdit(plan: any) {
+  editPlanId.value = plan.id
+  editContent.value = plan.planContent || ''
+  editVisible.value = true
+}
+
+async function saveEdit() {
+  if (!editContent.value.trim()) return
+  saving.value = true
+  try {
+    await api.put(`/plan/${editPlanId.value}`, { planContent: editContent.value })
+    await api.post(`/plan/${editPlanId.value}/regenerate-pdf`)
+    ElMessage.success('计划已更新，PDF 已重新生成')
+    editVisible.value = false
+    fetchPlans()
+  } catch {
+    ElMessage.error('保存失败')
+  }
+  saving.value = false
+}
+
+async function handleDelete(id: number) {
+  try {
+    await api.delete(`/plan/${id}`)
+    ElMessage.success('已删除')
+    fetchPlans()
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
 onMounted(fetchPlans)
-
-onUnmounted(() => {
-  if (pollTimer) clearInterval(pollTimer)
-})
 </script>
 
 <style lang="scss" scoped>
@@ -248,18 +315,35 @@ onUnmounted(() => {
     .history-header {
       display: flex;
       align-items: center;
-      gap: 16px;
+      gap: 8px;
+      flex-wrap: wrap;
 
       .history-goal {
         flex: 1;
         font-weight: 600;
         color: #1a1a2e;
+        min-width: 120px;
       }
 
       .history-date {
         font-size: 12px;
         color: #999;
+        white-space: nowrap;
       }
+    }
+  }
+
+  .detail-body {
+    max-height: 65vh;
+    overflow-y: auto;
+    :deep(.markdown-body) {
+      font-size: 14px;
+      line-height: 1.8;
+      h1 { font-size: 20px; margin: 16px 0 10px; }
+      h2 { font-size: 17px; margin: 14px 0 8px; }
+      h3 { font-size: 15px; margin: 12px 0 6px; }
+      ul, ol { padding-left: 20px; }
+      p { margin: 6px 0; }
     }
   }
 }

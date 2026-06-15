@@ -11,6 +11,9 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Slf4j
@@ -22,8 +25,17 @@ public class DiaryServiceImpl implements DiaryService {
 
     @Override @Transactional
     public Diary create(Long userId, DiaryRequest request) {
+        // 每天只能创建一篇日记
+        LocalDate today = LocalDate.now();
+        List<Diary> todayDiaries = diaryMapper.findByUserIdAndCreatedAtBetween(
+                userId, today.atStartOfDay(), today.atTime(LocalTime.MAX));
+        if (!todayDiaries.isEmpty()) {
+            throw new IllegalArgumentException("今天已经写过日记了，每天只能写一篇");
+        }
+
         Diary diary = Diary.builder().userId(userId).title(request.getTitle())
-                .content(request.getContent()).moodTag(request.getMoodTag()).build();
+                .content(request.getContent()).moodTag(request.getMoodTag())
+                .createdAt(LocalDateTime.now()).build();
         diaryMapper.insert(diary);
         return diary;
     }
@@ -50,6 +62,11 @@ public class DiaryServiceImpl implements DiaryService {
     @Override @Transactional
     public Diary update(Long id, DiaryRequest request) {
         Diary d = getById(id);
+        // 只能修改当天的日记
+        LocalDate diaryDate = d.getCreatedAt().toLocalDate();
+        if (!diaryDate.equals(LocalDate.now())) {
+            throw new IllegalArgumentException("只能修改当天的日记");
+        }
         d.setTitle(request.getTitle()); d.setContent(request.getContent()); d.setMoodTag(request.getMoodTag());
         diaryMapper.updateById(d);
         return d;

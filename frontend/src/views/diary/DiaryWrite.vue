@@ -81,9 +81,10 @@ async function submit() {
   }
 
   saving.value = true
+  const id = route.query.id || route.params.id
   try {
-    if (isEdit.value) {
-      await api.put(`/diary/${route.params.id}`, form)
+    if (isEdit.value && id) {
+      await api.put(`/diary/${id}`, form)
       ElMessage.success('日记已更新')
     } else {
       await api.post('/diary', form)
@@ -95,14 +96,14 @@ async function submit() {
 }
 
 onMounted(async () => {
-  const id = route.params.id
+  const id = route.query.id || route.params.id
   if (id && id !== 'write') {
     isEdit.value = true
     try {
       const res: any = await api.get(`/diary/${id}`)
       Object.assign(form, {
         title: res.data.title,
-        content: res.data.records,
+        content: res.data.content,
         moodTag: res.data.moodTag,
       })
     } catch { router.push('/diary') }

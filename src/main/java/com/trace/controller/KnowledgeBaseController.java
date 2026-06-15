@@ -27,6 +27,14 @@ public class KnowledgeBaseController {
         return ResponseEntity.ok(ApiResponse.success("题库导入完成，共 " + count + " 条", count));
     }
 
+    /** 检查用户是否有知识库文件 */
+    @GetMapping("/has-files")
+    public ResponseEntity<ApiResponse<Boolean>> hasFiles(
+            @AuthenticationPrincipal Long userId) {
+        List<KnowledgeBase> all = kbService.list(userId, null);
+        return ResponseEntity.ok(ApiResponse.success(!all.isEmpty()));
+    }
+
     /** 上传文件 */
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<List<KnowledgeBase>>> upload(

@@ -9,6 +9,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+
 import java.util.List;
 import java.util.Map;
 
@@ -19,8 +20,10 @@ public class PlanGenerationConsumer {
     private final StudyPlanMapper planMapper;
     private final PdfService pdfService;
     private final List<Agent> agents;
+    private final PlanSseRegistry sseRegistry;
 
-    @RabbitListener(queues = RabbitMQConfig.PLAN_QUEUE) @Transactional
+    @RabbitListener(queues = RabbitMQConfig.PLAN_QUEUE)
+    @Transactional
     public void handlePlanGeneration(Map<String, Object> msg) {
         Long planId = Long.valueOf(msg.get("planId").toString());
         Long userId = Long.valueOf(msg.get("userId").toString());
@@ -32,8 +35,22 @@ public class PlanGenerationConsumer {
             Agent pa = agents.stream().filter(a -> "plan".equals(a.name())).findFirst().orElse(null);
             String content = pa != null ? pa.handle("请为以下目标制定详细中文学习计划：\n" + goal, userId) : "服务暂不可用";
             String url = pdfService.generateAndUpload("学习计划_" + goal, content);
-            plan.setPlanContent(content); plan.setPlanUrl(url); planMapper.updateById(plan);
+            plan.setPlanContent(content);
+            plan.setPlanUrl(url);
+            planMapper.updateById(plan);
+            sseRegistry.pushCompleted(planId, Map.of(
+                    "planId", planId, "goal", goal,
+                    "planContent", content, "planUrl", url));
             log.info("RabbitMQ: plan completed planId={}", planId);
-        } catch (Exception e) { log.error("RabbitMQ: plan failed planId={}", planId, e); plan.setPlanContent("生成失败：" + e.getMessage()); planMapper.updateById(plan); }
+        } catch (Exception e) {
+            log.error("RabbitMQ: plan failed planId={}", planId, e);
+            String errMsg = "生成失败：" + e.getMessage();
+            plan.setPlanContent(errMsg);
+            plan.setPlanUrl("");
+            planMapper.updateById(plan);
+            sseRegistry.pushCompleted(planId, Map.of(
+                    "planId", planId, "goal", goal,
+                    "planContent", errMsg, "planUrl", ""));
+        }
     }
 }

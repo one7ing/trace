@@ -19,7 +19,11 @@
               <span v-for="t in record.skillTags" :key="t" class="card-tag">{{ t }}</span>
             </div>
           </div>
-          <div class="card-score" :class="scoreClass(record.avgScore)">{{ record.avgScore }}</div>
+          <div class="card-right">
+            <button class="btn-delete" @click.stop="handleDelete(record)" title="删除记录">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="15" height="15"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            </button>
+          </div>
         </div>
 
         <!-- AI 分析摘要 -->
@@ -54,16 +58,12 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
+import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
 const records = ref<any[]>([])
 const loading = ref(false)
 
-function scoreClass(s: number) {
-  if (s >= 8) return 'high'
-  if (s >= 6) return 'mid'
-  return 'low'
-}
 function formatDate(d: string) {
   if (!d) return '-'
   return new Date(d).toLocaleDateString('zh-CN')
@@ -76,6 +76,23 @@ async function fetchRecords() {
     records.value = res.data?.records || []
   } catch {}
   loading.value = false
+}
+
+async function handleDelete(record: any) {
+  try {
+    await ElMessageBox.confirm(
+      `确定要删除这条 ${record.industry} 面试记录吗？删除后无法恢复。`,
+      '删除确认',
+      { confirmButtonText: '确认删除', cancelButtonText: '取消', type: 'warning' }
+    )
+  } catch { return }
+  try {
+    await api.delete(`/interview/records/${record.id}`)
+    records.value = records.value.filter(r => r.id !== record.id)
+    ElMessage.success('记录已删除')
+  } catch {
+    ElMessage.error('删除失败')
+  }
 }
 
 onMounted(fetchRecords)
@@ -95,12 +112,15 @@ onMounted(fetchRecords)
 }
 .card-top { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 12px; }
 .card-main { flex: 1; }
+.card-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex-shrink: 0; margin-left: 16px; }
+.btn-delete {
+  background: none; border: none; color: var(--color-text-muted); cursor: pointer; padding: 2px;
+  border-radius: 4px; transition: all var(--transition);
+  &:hover { color: #f56c6c; background: rgba(245,108,108,.08); }
+}
 .card-industry { font-size: 15px; font-weight: 600; color: var(--color-text); margin-right: 10px; }
 .card-tags { display: inline-flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
 .card-tag { font-size: 11px; padding: 2px 8px; border-radius: 4px; background: var(--color-active); color: #7B61FF; }
-.card-score { font-size: 26px; font-weight: 700; flex-shrink: 0; margin-left: 16px;
-  &.high { color: #43B88C; } &.mid { color: #e6a23c; } &.low { color: #f56c6c; }
-}
 
 .card-analysis {
   padding: 12px 14px; border-radius: 8px; background: var(--color-score-bg); border: 1px solid var(--color-analysis-border); margin-bottom: 8px;
