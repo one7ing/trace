@@ -29,11 +29,37 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     @Transactional
-    public StudyPlan startGeneration(Long userId, String goal) {
-        StudyPlan p = StudyPlan.builder().userId(userId).goal(goal).planContent("正在生成中...").build();
+    public StudyPlan startGeneration(Long userId, String goal, Integer totalDuration) {
+        StudyPlan p = StudyPlan.builder()
+                .userId(userId).goal(goal)
+                .planContent("正在生成中...")
+                .totalDuration(totalDuration)
+                .source("ai")
+                .build();
         planMapper.insert(p);
         rabbitTemplate.convertAndSend(RabbitMQConfig.PLAN_EXCHANGE, RabbitMQConfig.PLAN_ROUTING_KEY,
                 Map.of("planId", p.getId(), "userId", userId, "goal", goal));
+        return p;
+    }
+
+    @Override
+    @Transactional
+    public StudyPlan createManual(Long userId, String goal, Integer totalDuration, String planContent) {
+        StudyPlan p = StudyPlan.builder()
+                .userId(userId).goal(goal)
+                .planContent(planContent != null ? planContent : "")
+                .planUrl("")
+                .totalDuration(totalDuration)
+                .source("manual")
+                .build();
+        planMapper.insert(p);
+        // 自动生成 PDF
+        if (planContent != null && !planContent.isBlank()) {
+            String url = pdfService.generateAndUpload("学习计划_" + goal, planContent);
+            p.setPlanUrl(url);
+        }
+        p.setUpdatedAt(LocalDateTime.now());
+        planMapper.updateById(p);
         return p;
     }
 

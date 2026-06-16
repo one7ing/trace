@@ -293,12 +293,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     }
 
     private String readPdf(byte[] data) throws Exception {
-        com.itextpdf.kernel.pdf.PdfDocument pdf = new com.itextpdf.kernel.pdf.PdfDocument(
-                new com.itextpdf.kernel.pdf.PdfReader(new java.io.ByteArrayInputStream(data)));
+        com.lowagie.text.pdf.PdfReader reader = new com.lowagie.text.pdf.PdfReader(
+                new java.io.ByteArrayInputStream(data));
+        com.lowagie.text.pdf.parser.PdfTextExtractor extractor =
+                new com.lowagie.text.pdf.parser.PdfTextExtractor(reader);
         StringBuilder sb = new StringBuilder();
-        for (int i = 1; i <= pdf.getNumberOfPages(); i++)
-            sb.append(com.itextpdf.kernel.pdf.canvas.parser.PdfTextExtractor.getTextFromPage(pdf.getPage(i))).append("\n");
-        pdf.close();
+        for (int i = 1; i <= reader.getNumberOfPages(); i++) {
+            sb.append(extractor.getTextFromPage(i)).append("\n");
+        }
+        reader.close();
         return sb.toString().trim();
     }
 

@@ -34,7 +34,9 @@
             </svg>
             AI 分析
           </div>
-          <p class="analysis-text">{{ record.aiAnalysis?.substring(0, 120) }}{{ record.aiAnalysis?.length > 120 ? '...' : '' }}</p>
+          <div class="analysis-preview">
+            <MarkdownRenderer :content="record.aiAnalysis" />
+          </div>
           <div class="weak-tags" v-if="record.weakSkills && record.weakSkills !== '无'">
             <span class="weak-label">薄弱项：</span>
             <span v-for="w in record.weakSkills?.split(',')" :key="w" class="weak-tag">{{ w }}</span>
@@ -58,6 +60,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import api from '@/api'
+import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
 import { ElMessageBox, ElMessage } from 'element-plus'
 
 const router = useRouter()
@@ -126,6 +129,33 @@ onMounted(fetchRecords)
   padding: 12px 14px; border-radius: 8px; background: var(--color-score-bg); border: 1px solid var(--color-analysis-border); margin-bottom: 8px;
   .analysis-label { font-size: 11px; font-weight: 600; color: #7B61FF; margin-bottom: 6px; }
   .analysis-text { font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; margin: 0; }
+  .analysis-preview {
+    font-size: 12px;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    max-height: 80px;
+    overflow: hidden;
+    position: relative;
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 24px;
+      background: linear-gradient(transparent, var(--color-score-bg, #fafafa));
+    }
+    :deep(.markdown-body) {
+      font-size: 12px;
+      line-height: 1.5;
+      h1, h2, h3, h4 { font-size: 13px; margin: 4px 0; }
+      p { margin: 2px 0; }
+      ul, ol { padding-left: 16px; margin: 2px 0; }
+      li { margin: 1px 0; }
+      strong { font-weight: 600; }
+      code { font-size: 11px; }
+    }
+  }
   .weak-tags { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
   .weak-label { font-size: 11px; color: #e6a23c; }
   .weak-tag { font-size: 10px; padding: 2px 7px; border-radius: 4px; background: var(--color-weak-bg); color: var(--color-weak-text); border: 1px solid var(--color-weak-border); }

@@ -35,6 +35,14 @@
     <div class="nav-divider"></div>
 
     <!-- 导航菜单 -->
+    <router-link to="/dashboard" class="nav-item" :class="{ active: isActive('/dashboard') }">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
+        <rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/>
+        <rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/>
+      </svg>
+      <span>仪表盘</span>
+    </router-link>
+
     <router-link to="/knowledge" class="nav-item" :class="{ active: isActive('/knowledge') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
         <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>

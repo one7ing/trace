@@ -72,6 +72,7 @@ public class DiaryServiceImpl implements DiaryService {
         return d;
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void delete(Long id) { getById(id); diaryMapper.deleteById(id); }
 }

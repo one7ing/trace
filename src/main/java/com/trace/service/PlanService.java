@@ -4,7 +4,8 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.trace.entity.StudyPlan;
 
 public interface PlanService {
-    StudyPlan startGeneration(Long userId, String goal);
+    StudyPlan startGeneration(Long userId, String goal, Integer totalDuration);
+    StudyPlan createManual(Long userId, String goal, Integer totalDuration, String planContent);
     IPage<StudyPlan> list(Long userId, int page, int size);
     StudyPlan getById(Long id);
     boolean isCompleted(Long id);

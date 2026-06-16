@@ -57,7 +57,6 @@ public class InterviewServiceImpl implements InterviewService {
             + "请先做一个简单的自我介绍，"
             + "也可以补充简历之外的其他项目经历。";
 
-    private static final int DEFAULT_QUESTION_COUNT = 20;
 
     @Override
     public Map<String, Object> startInterview(Long userId, InterviewStartRequest request) {

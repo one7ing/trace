@@ -9,6 +9,7 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestTimeoutException;
 
 import java.util.stream.Collectors;
 
@@ -35,6 +36,16 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
         return ResponseEntity.badRequest()
                 .body(ApiResponse.error(400, ex.getMessage()));
+    }
+
+    /**
+     * SSE 异步请求超时是正常行为（SseEmitter 60s 到期或客户端断开），
+     * 不应作为 ERROR 记录，直接返回空响应即可。
+     */
+    @ExceptionHandler(AsyncRequestTimeoutException.class)
+    public ResponseEntity<Void> handleAsyncTimeout(AsyncRequestTimeoutException ex) {
+        log.debug("SSE async timeout: {}", ex.getMessage());
+        return ResponseEntity.ok().build();
     }
 
     @ExceptionHandler(RuntimeException.class)

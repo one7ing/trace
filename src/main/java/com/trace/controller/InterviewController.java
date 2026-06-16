@@ -3,19 +3,20 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.trace.dto.*;
 import com.trace.entity.InterviewRecord;
 import com.trace.service.InterviewService;
+import com.trace.service.impl.InterviewSseRegistry;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 import java.util.Map;
 
-@RestController
-@RequestMapping("/api/interview")
-@RequiredArgsConstructor
+@RestController @RequestMapping("/api/interview") @RequiredArgsConstructor
 public class InterviewController {
     private final InterviewService interviewService;
+    private final InterviewSseRegistry sseRegistry;
 
         // 开始面试（同步）
         @PostMapping("/start")
@@ -58,6 +59,24 @@ public class InterviewController {
                 @PathVariable Long id) {
             return ResponseEntity.ok(
                     ApiResponse.success(interviewService.getRecordDetail(id)));
+        }
+
+        /** SSE 端点：等待面试评价生成完成 */
+        @GetMapping(value = "/records/{id}/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
+        public SseEmitter stream(@PathVariable Long id) {
+            SseEmitter emitter = sseRegistry.register(id);
+            // 如果已经完成，直接推送
+            InterviewRecord r = interviewService.getRecordDetail(id);
+            if (r.getAiAnalysis() != null && !r.getAiAnalysis().isBlank()) {
+                Map<String, Object> data = Map.of(
+                        "recordId", id,
+                        "aiAnalysis", r.getAiAnalysis());
+                try {
+                    emitter.send(SseEmitter.event().name("completed").data(data));
+                    emitter.complete();
+                } catch (Exception ignored) {}
+            }
+            return emitter;
         }
 
         // 下载面试报告

@@ -8,4 +8,7 @@ public class PlanGenerateRequest {
 
     @NotBlank(message = "目标不能为空")
     private String goal;
+
+    /** 计划总时长（天），用于打卡进度 */
+    private Integer totalDuration;
 }

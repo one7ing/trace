@@ -2,7 +2,7 @@ package com.trace.controller;
 
 import com.trace.dto.ApiResponse;
 import com.trace.entity.KnowledgeBase;
-import com.trace.service.InterviewBankService;
+import com.trace.service.impl.InterviewBankService;
 import com.trace.service.KnowledgeBaseService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;

@@ -5,7 +5,7 @@ import com.trace.dto.ApiResponse;
 import com.trace.dto.PlanGenerateRequest;
 import com.trace.entity.StudyPlan;
 import com.trace.service.PlanService;
-import com.trace.service.PlanSseRegistry;
+import com.trace.service.impl.PlanSseRegistry;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -26,7 +26,20 @@ public class PlanController {
             @AuthenticationPrincipal Long userId,
             @Valid @RequestBody PlanGenerateRequest req) {
         return ResponseEntity.ok(ApiResponse.success("已提交",
-                planService.startGeneration(userId, req.getGoal())));
+                planService.startGeneration(userId, req.getGoal(), req.getTotalDuration())));
+    }
+
+    /** 手动创建计划（不走 AI），自动生成 PDF */
+    @PostMapping("/create")
+    public ResponseEntity<ApiResponse<StudyPlan>> create(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody Map<String, Object> body) {
+        String goal = (String) body.get("goal");
+        Integer totalDuration = body.get("totalDuration") != null
+                ? ((Number) body.get("totalDuration")).intValue() : null;
+        String planContent = (String) body.getOrDefault("planContent", "");
+        return ResponseEntity.ok(ApiResponse.success("已创建",
+                planService.createManual(userId, goal, totalDuration, planContent)));
     }
 
     /** SSE 端点：等待计划生成完成 */
@@ -39,7 +52,8 @@ public class PlanController {
             Map<String, Object> data = Map.of(
                     "planId", id, "goal", p.getGoal(),
                     "planContent", p.getPlanContent() != null ? p.getPlanContent() : "",
-                    "planUrl", p.getPlanUrl() != null ? p.getPlanUrl() : "");
+                    "planUrl", p.getPlanUrl() != null ? p.getPlanUrl() : "",
+                    "totalDuration", p.getTotalDuration() != null ? p.getTotalDuration() : 0);
             try {
                 emitter.send(SseEmitter.event().name("completed").data(data));
                 emitter.complete();
