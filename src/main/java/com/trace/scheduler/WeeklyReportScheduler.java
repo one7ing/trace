@@ -10,7 +10,9 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import java.util.concurrent.TimeUnit;
 
-@Slf4j @Component @RequiredArgsConstructor
+@Slf4j
+@Component
+@RequiredArgsConstructor
 public class WeeklyReportScheduler {
     private final WeeklyReportService reportService;
     private final UserMapper userMapper;

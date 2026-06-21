@@ -23,7 +23,8 @@ public class AuthServiceImpl implements AuthService {
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public Map<String, Object> register(RegisterRequest request) {
         if (userMapper.existsByUsername(request.getUsername()))
             throw new IllegalArgumentException("用户名已存在");

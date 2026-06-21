@@ -20,8 +20,6 @@ import java.util.Map;
 @RequestMapping("/api/knowledge")
 @RequiredArgsConstructor
 public class KnowledgeController {
-
-    private final KnowledgeService knowledgeService;
     private final AgentRouter agentRouter;
     private final MemoryService memoryService;
 

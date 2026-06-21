@@ -5,7 +5,10 @@ import lombok.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @TableName("weekly_reports")
 public class WeeklyReport {
     @TableId(type = IdType.AUTO)

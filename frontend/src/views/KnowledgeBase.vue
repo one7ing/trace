@@ -8,7 +8,7 @@
     <div class="toolbar">
       <div class="search-box"><input v-model="searchQuery" class="text-input" placeholder="输入关键词语义搜索..." @keydown.enter="doSearch"/><button class="btn-action" @click="doSearch">搜索</button></div>
       <div class="upload-box">
-        <label class="btn-upload"><input type="file" accept=".pdf,.txt,.md" @change="handleUpload" style="display:none" ref="fileInputRef"/>上传文件</label>
+        <label class="btn-upload" :class="{ disabled: uploading }"><input type="file" accept=".pdf,.txt,.md" @change="handleUpload" style="display:none" ref="fileInputRef" :disabled="uploading"/>{{ uploading ? '上传中...' : '上传文件' }}</label>
         <button class="btn-danger" @click="clearAll" v-if="list.length">清空</button>
       </div>
     </div>
@@ -71,6 +71,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 
 const searchQuery = ref(''); const list = ref<any[]>([]); const searchResults = ref<any[]>([])
 const fileInputRef = ref<HTMLInputElement>(); const currentPage = ref(1); const pageSize = 8
+const uploading = ref(false)
 const totalPages = computed(() => Math.ceil(list.value.length / pageSize))
 const paginatedList = computed(() => list.value.slice((currentPage.value - 1) * pageSize, currentPage.value * pageSize))
 
@@ -94,8 +95,11 @@ async function doSearch() {
 }
 async function handleUpload(e: Event) {
   const t = e.target as HTMLInputElement; const file = t.files?.[0]; if (!file) return
+  if (uploading.value) return
+  uploading.value = true
   const form = new FormData(); form.append('file', file); form.append('knowledgeType', 'USER')
   try { await api.post('/knowledge-base/upload', form, { headers: { 'Content-Type': 'multipart/form-data' } }); ElMessage.success('上传成功'); fetchList() } catch {}
+  uploading.value = false
   t.value = ''
 }
 async function deleteFile(fileName: string) {
@@ -140,7 +144,7 @@ onMounted(fetchList)
 .text-input { flex: 1; height: 38px; padding: 0 14px; border: 1.5px solid var(--color-border); border-radius: 9px; font-size: 13px; outline: none; background: var(--color-input); color: var(--color-text); &:focus { border-color: #7B61FF; } }
 .btn-action { padding: 0 18px; border: none; border-radius: 9px; background: #7B61FF; color: #fff; font-size: 13px; cursor: pointer; &:hover { background: #6a50f0; } }
 .upload-box { display: flex; gap: 8px; }
-.btn-upload { display: inline-flex; align-items: center; padding: 0 18px; height: 38px; border-radius: 9px; border: 1.5px solid #7B61FF; background: #f8f6ff; color: #7B61FF; font-size: 13px; cursor: pointer; &:hover { background: #f0edff; } }
+.btn-upload { display: inline-flex; align-items: center; padding: 0 18px; height: 38px; border-radius: 9px; border: 1.5px solid #7B61FF; background: #f8f6ff; color: #7B61FF; font-size: 13px; cursor: pointer; &:hover { background: #f0edff; } &.disabled { opacity: .5; cursor: not-allowed; pointer-events: none; } }
 .btn-danger { padding: 0 16px; border: 1.5px solid #f56c6c; border-radius: 9px; background: #fff; color: #f56c6c; font-size: 12px; cursor: pointer; &:hover { background: #fef0f0; } }
 .section { margin-bottom: 22px; }
 .section-title { font-size: 13px; font-weight: 600; color: var(--color-text); margin: 0 0 10px; }

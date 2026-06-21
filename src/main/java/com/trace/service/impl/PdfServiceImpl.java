@@ -110,7 +110,6 @@ public class PdfServiceImpl implements PdfService {
 
     // ────────── 公开方法 ──────────
 
-    @Override
     @PostConstruct
     public void ensureBucketExists() {
         try {

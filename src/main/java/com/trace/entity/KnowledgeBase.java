@@ -23,7 +23,7 @@ public class KnowledgeBase {
     private String content;         // 原始文本片段
 
     @TableField("knowledge_type")
-    private String knowledgeType;   // USER / INTERVIEW / WEB
+    private String knowledgeType;   // USER / INTERVIEW
 
     @TableField("chunk_index")
     private Integer chunkIndex;     // 片段序号

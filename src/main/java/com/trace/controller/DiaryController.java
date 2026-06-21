@@ -15,7 +15,11 @@ import org.springframework.web.bind.annotation.*;
 public class DiaryController {
     private final DiaryService diaryService;
     @PostMapping
-    public ResponseEntity<ApiResponse<Diary>> create(@AuthenticationPrincipal Long userId, @Valid @RequestBody DiaryRequest req) { return ResponseEntity.ok(ApiResponse.success("日记创建成功", diaryService.create(userId, req))); }
+    public ResponseEntity<ApiResponse<Diary>> create(@AuthenticationPrincipal Long userId, @Valid @RequestBody DiaryRequest req){
+        return ResponseEntity
+                .ok(ApiResponse
+                        .success("日记创建成功", diaryService.create(userId, req)));
+    }
     @GetMapping
     public ResponseEntity<ApiResponse<IPage<Diary>>> list(@AuthenticationPrincipal Long userId, @RequestParam(defaultValue = "0") int page, @RequestParam(defaultValue = "10") int size) { return ResponseEntity.ok(ApiResponse.success(diaryService.list(userId, page, size))); }
     @GetMapping("/{id}")

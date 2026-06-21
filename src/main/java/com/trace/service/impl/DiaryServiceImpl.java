@@ -23,7 +23,8 @@ public class DiaryServiceImpl implements DiaryService {
 
     private final DiaryMapper diaryMapper;
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public Diary create(Long userId, DiaryRequest request) {
         // 每天只能创建一篇日记
         LocalDate today = LocalDate.now();

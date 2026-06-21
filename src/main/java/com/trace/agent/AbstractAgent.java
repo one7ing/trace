@@ -1,37 +1,35 @@
 package com.trace.agent;
 
+import com.trace.entity.LongTermMemory;
 import com.trace.service.MemoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.data.redis.core.StringRedisTemplate;
 
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentMap;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Map;
 
-/**
- * Agent 抽象基类 —— 封装公共逻辑（记忆检索、上下文构建、日志）
- * 子类只需实现 name() 和 buildSystemPrompt()
- */
+import com.constant.constant;
+
 @Slf4j
 public abstract class AbstractAgent implements Agent {
-
     protected final ChatClient.Builder chatClientBuilder;
     protected final MemoryService memoryService;
+    protected final StringRedisTemplate stringRedisTemplate;
 
-    /** 全局取消令牌 —— key: userId, value: 是否取消 */
-    public static final ConcurrentMap<Long, AtomicBoolean> CANCEL_MAP = new ConcurrentHashMap<>();
+    private static volatile StringRedisTemplate staticRedisTemplate;
 
     protected AbstractAgent(ChatClient.Builder chatClientBuilder,
-                             MemoryService memoryService) {
+                            MemoryService memoryService,
+                            StringRedisTemplate stringRedisTemplate) {
         this.chatClientBuilder = chatClientBuilder;
         this.memoryService = memoryService;
+        this.stringRedisTemplate = stringRedisTemplate;
+        AbstractAgent.staticRedisTemplate = stringRedisTemplate;
     }
 
-    /** 加载此 Agent 的 System Prompt（子类实现） */
     protected abstract String loadSystemPrompt();
 
-    /** 默认匹配：关键词检测 */
     protected boolean matchKeywords(String input, String... keywords) {
         if (input == null) return false;
         String lower = input.toLowerCase();
@@ -41,43 +39,63 @@ public abstract class AbstractAgent implements Agent {
         return false;
     }
 
-    protected List<com.trace.entity.LongTermMemory> searchMemory(Long userId, String query, int limit) {
-        return memoryService.getRecentMemories(userId, limit);
-    }
-
-    /** 构建对话上下文 */
     protected String buildContext(Long userId, String userInput) {
-        var memories = searchMemory(userId, userInput, 5);
+        List<LongTermMemory> memories = memoryService.searchSimilarMemories(userId, userInput, 3);
+        List<Map<String, String>> shortTermHistory = memoryService.getChatContext(userId);
         StringBuilder sb = new StringBuilder();
-        if (!memories.isEmpty()) {
-            sb.append("## 用户历史相关记忆：\n");
-            for (var m : memories) {
+        if (memories != null && !memories.isEmpty()) {
+            sb.append("## 与当前问题相关的用户记忆：\n");
+            for (LongTermMemory m : memories) {
                 sb.append("- ").append(m.getContent()).append("\n");
             }
+            sb.append("\n");
+        }
+        if (shortTermHistory != null && !shortTermHistory.isEmpty()) {
+            sb.append("## 近期聊天记录：\n");
+            for (Map<String, String> entry : shortTermHistory) {
+                String role = entry.get("role");
+                String content = entry.get("content");
+                if (content != null && !content.isBlank()) {
+                    if ("user".equals(role)) {
+                        sb.append("用户：").append(content).append("\n");
+                    } else {
+                        sb.append("AI：").append(content).append("\n");
+                    }
+                }
+            }
+            sb.append("\n");
         }
         return sb.toString();
     }
 
-    /** 公共流式处理 */
+    static String cancelKey(Long userId) {
+        return constant.CANCEL_KEY_PREFIX + userId;
+    }
+
     @Override
     public reactor.core.publisher.Flux<String> handleStream(String userInput, Long userId) {
-        AtomicBoolean cancelled = CANCEL_MAP.computeIfAbsent(userId, k -> new AtomicBoolean(false));
-        cancelled.set(false);
-
         ChatClient chatClient = chatClientBuilder.build();
-
         return chatClient.prompt()
                 .system(loadSystemPrompt())
                 .user(userInput)
                 .stream()
                 .content()
-                .takeUntil(s -> cancelled.get())
-                .doOnCancel(() -> log.info("Agent stream cancelled: userId={}, agent={}", userId, name()))
-                .doOnComplete(() -> log.debug("Agent stream completed: userId={}, agent={}", userId, name()))
-                .doOnError(e -> log.error("Agent stream error: userId={}, agent={}", userId, name(), e));
+                .doFirst(() -> stringRedisTemplate.opsForValue().set(cancelKey(userId), "true"))
+                .takeUntil(token -> stringRedisTemplate.opsForValue().get(cancelKey(userId)) != null)
+                .doOnCancel(() -> {
+                    stringRedisTemplate.delete(cancelKey(userId));
+                    log.info("Agent stream cancelled: userId={}, agent={}", userId, name());
+                })
+                .doOnComplete(() -> {
+                    stringRedisTemplate.delete(cancelKey(userId));
+                    log.debug("Agent stream completed: userId={}, agent={}", userId, name());
+                })
+                .doOnError(e -> {
+                    stringRedisTemplate.delete(cancelKey(userId));
+                    log.error("Agent stream error: userId={}, agent={}", userId, name(), e);
+                });
     }
 
-    /** 公共非流式处理 */
     @Override
     public String handle(String userInput, Long userId) {
         ChatClient chatClient = chatClientBuilder.build();
@@ -93,10 +111,8 @@ public abstract class AbstractAgent implements Agent {
         }
     }
 
-    /** 取消当前用户的流式生成 */
     public static void cancel(Long userId) {
-        AtomicBoolean cb = CANCEL_MAP.get(userId);
-        if (cb != null) cb.set(true);
-        log.info("Cancel requested for userId={}", userId);
+        StringRedisTemplate redis = staticRedisTemplate;
+        redis.delete(cancelKey(userId));
     }
 }

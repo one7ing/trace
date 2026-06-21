@@ -35,7 +35,6 @@ public class AgentRouter {
                 return agent;
             }
         }
-        log.info("AgentRouter: using default agent (knowledge) for userId={}", userId);
         return defaultAgent;
     }
 
@@ -48,7 +47,7 @@ public class AgentRouter {
     }
 
     /**
-     * 取消指定用户的流式生成
+     * 取消指定用户的流式生成 —— 委托给 AbstractAgent 的 Redis 取消信号。
      */
     public void cancel(Long userId) {
         AbstractAgent.cancel(userId);

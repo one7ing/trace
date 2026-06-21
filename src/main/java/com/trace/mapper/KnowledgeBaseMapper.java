@@ -38,8 +38,9 @@ public interface KnowledgeBaseMapper extends BaseMapper<KnowledgeBase> {
 
     /**
      * 混合检索：向量相似度(0.7) + 全文 ts_rank(0.3)。
+     * 返回原始列 Map，由 Service 层手动构造 Document。
      */
-    List<org.springframework.ai.document.Document> hybridSearch(
+    List<java.util.LinkedHashMap<String, Object>> hybridSearch(
             @Param("queryVec") String queryVec,
             @Param("tsQuery") String tsQuery,
             @Param("category") String category,
@@ -70,4 +71,22 @@ public interface KnowledgeBaseMapper extends BaseMapper<KnowledgeBase> {
     List<KnowledgeBase> similaritySearchUser(@Param("userId") Long userId,
                                              @Param("vecStr") String vecStr,
                                              @Param("limit") int limit);
+
+    /**
+     * 直接写入 public.vector_store（替代 Spring AI VectorStore.add）。
+     *
+     * @param id      Document UUID 字符串
+     * @param content 文本内容
+     * @param metadata 元数据 JSON 字符串
+     * @param vecStr  向量字符串，如 "[0.1,0.2,...]"
+     */
+    void insertVectorStore(@Param("id") String id,
+                           @Param("content") String content,
+                           @Param("metadata") String metadata,
+                           @Param("vecStr") String vecStr);
+
+    /**
+     * 按 ID 列表删除 vector_store 记录。
+     */
+    void deleteFromVectorStore(@Param("ids") List<String> ids);
 }

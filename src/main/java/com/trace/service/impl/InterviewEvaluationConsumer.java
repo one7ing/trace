@@ -13,6 +13,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+import static com.constant.constant.RabbitMQ.INTERVIEW_EVAL_QUEUE;
+
 /**
  * 面试综合评价消费者 —— RabbitMQ 异步生成面试评价。
  * Q&A 数据随消息传入，不持久化到数据库。
@@ -26,7 +28,7 @@ public class InterviewEvaluationConsumer {
     private final InterviewRecordMapper recordMapper;
     private final InterviewSseRegistry sseRegistry;
 
-    @RabbitListener(queues = RabbitMQConfig.INTERVIEW_EVAL_QUEUE)
+    @RabbitListener(queues = INTERVIEW_EVAL_QUEUE)
     @Transactional
     @SuppressWarnings("unchecked")
     public void handleEvaluation(Map<String, Object> msg) {

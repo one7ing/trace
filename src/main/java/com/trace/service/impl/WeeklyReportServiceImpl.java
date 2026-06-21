@@ -36,7 +36,8 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             结构：概览、日记关键事件、知识探索热点、面试表现、下周建议。使用 Markdown 格式，全部中文。
             """;
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public WeeklyReport generateWeeklyReport(Long userId) {
         LocalDate now = LocalDate.now();
         LocalDate ws = now.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));

@@ -3,8 +3,9 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.trace.mapper.KnowledgeBaseMapper">
 
-    <!-- 混合检索：向量相似度(0.7) + 全文 ts_rank(0.3) -->
-    <select id="hybridSearch" resultType="org.springframework.ai.document.Document">
+    <!-- 混合检索：向量相似度(0.7) + 全文 ts_rank(0.3)
+         返回 LinkedHashMap，由 Service 层构造 Document -->
+    <select id="hybridSearch" resultType="java.util.LinkedHashMap">
         SELECT id,
                content,
                metadata,
@@ -32,7 +33,7 @@
 
     <select id="findShared" resultType="com.trace.entity.KnowledgeBase">
         SELECT * FROM knowledge_bases
-        WHERE knowledge_type IN ('INTERVIEW','WEB')
+        WHERE knowledge_type = 'INTERVIEW'
         ORDER BY created_at DESC
     </select>
 
@@ -89,5 +90,25 @@
         ORDER BY embedding &lt;=&gt; #{vecStr}::vector
         LIMIT #{limit}
     </select>
+
+    <!-- ========== vector_store 直接写入（替代 Spring AI VectorStore） ========== -->
+
+    <!-- 写入向量数据到 public.vector_store -->
+    <insert id="insertVectorStore">
+        INSERT INTO public.vector_store (id, content, metadata, embedding)
+        VALUES (#{id}::uuid,
+                #{content},
+                #{metadata}::jsonb,
+                #{vecStr}::vector)
+    </insert>
+
+    <!-- 按 ID 删除 vector_store 记录 -->
+    <delete id="deleteFromVectorStore">
+        DELETE FROM public.vector_store
+        WHERE id::text IN
+        <foreach collection="ids" item="id" open="(" separator="," close=")">
+            #{id}
+        </foreach>
+    </delete>
 
 </mapper>

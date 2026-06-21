@@ -4,6 +4,7 @@ import com.trace.service.MemoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.core.io.ClassPathResource;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -16,8 +17,9 @@ public class DiaryAgent extends AbstractAgent {
     private String cachedPrompt;
 
     public DiaryAgent(ChatClient.Builder chatClientBuilder,
-                      MemoryService memoryService) {
-        super(chatClientBuilder, memoryService);
+                      MemoryService memoryService,
+                      StringRedisTemplate stringRedisTemplate) {
+        super(chatClientBuilder, memoryService, stringRedisTemplate);
     }
 
     @Override

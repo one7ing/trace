@@ -15,15 +15,26 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
-@RestController @RequestMapping("/api/auth") @RequiredArgsConstructor
+@RestController
+@RequestMapping("/api/auth")
+@RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
     private final UserMapper userMapper;
 
     @PostMapping("/register")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> register(@Valid @RequestBody RegisterRequest r) { return ResponseEntity.ok(ApiResponse.success("注册成功", authService.register(r))); }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> register(@Valid @RequestBody RegisterRequest r){
+        return ResponseEntity
+                .ok(ApiResponse
+                        .success("注册成功", authService.register(r)));
+    }
+
     @PostMapping("/login")
-    public ResponseEntity<ApiResponse<Map<String, Object>>> login(@Valid @RequestBody LoginRequest r) { return ResponseEntity.ok(ApiResponse.success("登录成功", authService.login(r))); }
+    public ResponseEntity<ApiResponse<Map<String, Object>>> login(@Valid @RequestBody LoginRequest r){
+        return ResponseEntity
+                .ok(ApiResponse
+                        .success("登录成功", authService.login(r)));
+    }
 
     /** 上传头像（图片文件 → Base64 存储） */
     @PostMapping("/avatar")

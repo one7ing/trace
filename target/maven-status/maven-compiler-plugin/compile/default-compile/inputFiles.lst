@@ -1,3 +1,4 @@
+C:\Users\10031\Desktop\trace\src\main\java\com\constant\constant.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\agent\AbstractAgent.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\agent\Agent.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\agent\AgentRouter.java
@@ -38,10 +39,12 @@ C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\Diary.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\GrowthAnchor.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\InterviewRecord.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\KnowledgeBase.java
+C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\KnowledgeSearchResult.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\LongTermMemory.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\StudyPlan.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\User.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\entity\WeeklyReport.java
+C:\Users\10031\Desktop\trace\src\main\java\com\trace\enums\IntentType.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\enums\SearchType.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\exception\GlobalExceptionHandler.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\mapper\ChatHistoryMapper.java
@@ -54,7 +57,6 @@ C:\Users\10031\Desktop\trace\src\main\java\com\trace\mapper\LongTermMemoryMapper
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\mapper\StudyPlanMapper.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\mapper\UserMapper.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\mapper\WeeklyReportMapper.java
-C:\Users\10031\Desktop\trace\src\main\java\com\trace\scheduler\ChatMemoryExtractScheduler.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\scheduler\WeeklyReportScheduler.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\security\JwtAuthenticationFilter.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\security\JwtUtil.java
@@ -68,7 +70,7 @@ C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\InterviewEvalu
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\InterviewServiceImpl.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\InterviewSseRegistry.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\KnowledgeBaseServiceImpl.java
-C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\KnowledgeServiceImpl.java
+C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\MemoryExtractConsumer.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\MemoryServiceImpl.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\PdfServiceImpl.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\PlanGenerationConsumer.java

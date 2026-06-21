@@ -3,8 +3,11 @@ package com.trace.agent;
 import com.trace.service.MemoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Component;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 
@@ -15,7 +18,7 @@ import java.util.Map;
 @Slf4j
 @Component
 public class QueryRewriteAgent {
-
+    private String cachedPrompt;
     private final ChatClient.Builder chatClientBuilder;
     private final MemoryService memoryService;
 
@@ -41,19 +44,16 @@ public class QueryRewriteAgent {
             return false;
         }
         // 包含问句结构 → 不需要改写
-        if (trimmed.contains("怎么")
-                || trimmed.contains("如何")
-                || trimmed.contains("是什么")
-                || trimmed.contains("为什么")
-                || trimmed.contains("区别")
-                || trimmed.contains("原理")
-                || trimmed.contains("怎样")
-                || trimmed.contains("介绍")
-                || trimmed.endsWith("？")
-                || trimmed.endsWith("?")) {
-            return false;
-        }
-        return true;
+        return !trimmed.contains("怎么")
+                && !trimmed.contains("如何")
+                && !trimmed.contains("是什么")
+                && !trimmed.contains("为什么")
+                && !trimmed.contains("区别")
+                && !trimmed.contains("原理")
+                && !trimmed.contains("怎样")
+                && !trimmed.contains("介绍")
+                && !trimmed.endsWith("？")
+                && !trimmed.endsWith("?");
     }
 
     /**
@@ -77,16 +77,9 @@ public class QueryRewriteAgent {
                 }
             }
             ChatClient chatClient = chatClientBuilder.build();
-            String rewritten = chatClient.prompt()
-                    .system("""
-                            你是一个查询改写助手。用户的原始查询可能太短、口语化或包含不明确的指代词。
-                            请根据对话历史，将用户的查询改写为一个完整、清晰的搜索查询。
-                            规则：
-                            1. 将代词（"他"、"它"、"这个"、"那个"等）替换为明确的实体名。
-                            2. 将口语化表达转换为正式的搜索关键词。
-                            3. 如果查询已经足够清晰，直接返回原文。
-                            4. 只输出改写后的查询，不要输出任何解释。
-                            """)
+            String rewritten = chatClient
+                    .prompt()
+                    .system(systemprompt())
                     .user(ctx + "\n原始查询：" + query)
                     .call()
                     .content();
@@ -110,5 +103,19 @@ public class QueryRewriteAgent {
                 .filter(m -> "user".equals(m.get("role")))
                 .map(m -> m.get("content"))
                 .toList();
+    }
+    /**
+     * 构建系统提示词
+     */
+    public String systemprompt(){
+        if(cachedPrompt==null) {
+            try {
+                cachedPrompt = new ClassPathResource("agent/prompts/Rewrite")
+                        .getContentAsString(StandardCharsets.UTF_8);
+            } catch (IOException e) {
+                return "你要重写用户提示词，使其清晰";
+            }
+        }
+        return cachedPrompt;
     }
 }

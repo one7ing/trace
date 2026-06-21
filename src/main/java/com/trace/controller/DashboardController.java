@@ -26,6 +26,8 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static com.constant.constant.Dashboard.*;
+
 /**
  * 仪表盘控制器 —— 聚合首页所需的各类统计数据。
  * <p>
@@ -48,44 +50,6 @@ public class DashboardController {
     private final DailyCheckInMapper checkInMapper;
     private final GrowthAnchorMapper anchorMapper;
 
-    /** 成长力评分中每次打卡的基准分值 */
-    private static final int CHECKIN_WEIGHT = 4;
-
-    /** 成长力评分中每次面试的基准分值 */
-    private static final int INTERVIEW_WEIGHT = 10;
-
-    /** 成长力评分中每个计划的基准分值 */
-    private static final int PLAN_WEIGHT = 5;
-
-    /** 打卡分数上限 */
-    private static final int CHECKIN_CAP = 40;
-
-    /** 面试分数上限 */
-    private static final int INTERVIEW_CAP = 30;
-
-    /** 计划分数上限 */
-    private static final int PLAN_CAP = 20;
-
-    /** 日记分数上限 */
-    private static final int DIARY_CAP = 10;
-
-    /** 成长力总分上限 */
-    private static final int MAX_SCORE = 100;
-
-    /** 热力图统计周数 */
-    private static final int HEATMAP_WEEKS = 12;
-
-    /** 趋势图展示天数 */
-    private static final int TREND_DAYS = 30;
-
-    /** 每日得分中每次打卡的分值 */
-    private static final int DAY_CHECKIN_SCORE = 15;
-
-    /** 每日得分中每次面试的分值 */
-    private static final int DAY_INTERVIEW_SCORE = 25;
-
-    /** 每周的天数 */
-    private static final int DAYS_PER_WEEK = 7;
 
     /**
      * 首页综合仪表盘数据。

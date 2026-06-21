@@ -48,6 +48,27 @@ public class RabbitMQConfig {
                 .with(INTERVIEW_EVAL_ROUTING_KEY);
     }
 
+    // === 长期记忆异步提取 ===
+    public static final String MEMORY_EXTRACT_QUEUE = "trace.memory.extract";
+    public static final String MEMORY_EXTRACT_EXCHANGE = "trace.memory.exchange";
+    public static final String MEMORY_EXTRACT_ROUTING_KEY = "trace.memory.extract";
+
+    @Bean
+    public Queue memoryExtractQueue() {
+        return QueueBuilder.durable(MEMORY_EXTRACT_QUEUE).build();
+    }
+
+    @Bean
+    public DirectExchange memoryExtractExchange() {
+        return new DirectExchange(MEMORY_EXTRACT_EXCHANGE);
+    }
+
+    @Bean
+    public Binding memoryExtractBinding(Queue memoryExtractQueue, DirectExchange memoryExtractExchange) {
+        return BindingBuilder.bind(memoryExtractQueue).to(memoryExtractExchange)
+                .with(MEMORY_EXTRACT_ROUTING_KEY);
+    }
+
     @Bean
     public MessageConverter jsonMessageConverter() {
         return new Jackson2JsonMessageConverter();

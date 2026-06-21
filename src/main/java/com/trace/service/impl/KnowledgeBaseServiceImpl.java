@@ -1,6 +1,7 @@
 package com.trace.service.impl;
-
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.trace.entity.KnowledgeBase;
 import com.trace.mapper.KnowledgeBaseMapper;
 import com.trace.service.KnowledgeBaseService;
@@ -11,7 +12,6 @@ import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.SearchRequest;
 import org.springframework.ai.embedding.EmbeddingModel;
 import org.springframework.ai.vectorstore.VectorStore;
-import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -27,13 +27,16 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private final KnowledgeBaseMapper kbMapper;
     private final VectorStore vectorStore;
     private final EmbeddingModel embeddingModel;
+    private final ObjectMapper objectMapper;
 
     public KnowledgeBaseServiceImpl(KnowledgeBaseMapper kbMapper,
                                      VectorStore vectorStore,
-                                     @Autowired(required = false) EmbeddingModel embeddingModel) {
+                                     @Autowired(required = false) EmbeddingModel embeddingModel,
+                                     ObjectMapper objectMapper) {
         this.kbMapper = kbMapper;
         this.vectorStore = vectorStore;
         this.embeddingModel = embeddingModel;
+        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -41,11 +44,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     public List<KnowledgeBase> uploadFile(Long userId, MultipartFile file, String knowledgeType) {
         String text = readFile(file);
         List<Document> docs = chunkToDocuments(text, userId, file.getOriginalFilename(), knowledgeType);
-        // DashScope embedding 批量限制 ≤10，分批添加
-        for (int i = 0; i < docs.size(); i += 10) {
-            int end = Math.min(i + 10, docs.size());
-            vectorStore.add(docs.subList(i, end));
-        }
+        addToVectorStore(docs);
         List<KnowledgeBase> results = new ArrayList<>();
         for (int i = 0; i < docs.size(); i++) {
             KnowledgeBase kb = KnowledgeBase.builder()
@@ -72,10 +71,10 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             w.eq(KnowledgeBase::getUserId, userId)
                     .eq(KnowledgeBase::getKnowledgeType, "USER");
         else
-            w.in(KnowledgeBase::getKnowledgeType, List.of("INTERVIEW", "WEB"));
+            w.eq(KnowledgeBase::getKnowledgeType, "INTERVIEW");
         List<KnowledgeBase> matched = kbMapper.selectList(w).stream()
                 .filter(kb -> docIds.contains(extractDocId(kb.getMetadata())))
-                .collect(Collectors.toList());
+                .toList();
         // 按文件名去重
         Map<String, KnowledgeBase> grouped = new LinkedHashMap<>();
         for (KnowledgeBase kb : matched) {
@@ -103,7 +102,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         return new ArrayList<>(grouped.values());
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void deleteById(Long userId, Long id) {
         KnowledgeBase kb = kbMapper.selectById(id);
         if (kb == null) throw new IllegalArgumentException("不存在");
@@ -131,14 +131,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 .collect(Collectors.joining("\n"));
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void updateFileContent(Long userId, String fileName, String newContent) {
         // 删除旧分块
         LambdaQueryWrapper<KnowledgeBase> w = new LambdaQueryWrapper<>();
         w.eq(KnowledgeBase::getUserId, userId).eq(KnowledgeBase::getFileName, fileName);
         List<KnowledgeBase> old = kbMapper.selectList(w);
         for (KnowledgeBase kb : old) {
-            try { vectorStore.delete(List.of(extractDocId(kb.getMetadata()))); } catch (Exception ignored) {}
+            try { deleteFromVectorStoreByIds(List.of(extractDocId(kb.getMetadata()))); } catch (Exception ignored) {}
         }
         kbMapper.delete(w);
 
@@ -146,7 +147,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         List<Document> docs = chunkToDocuments(newContent, userId, fileName, "USER");
         for (int i = 0; i < docs.size(); i += 10) {
             int end = Math.min(i + 10, docs.size());
-            vectorStore.add(docs.subList(i, end));
+            addToVectorStore(docs.subList(i, end));
         }
         for (int i = 0; i < docs.size(); i++) {
             KnowledgeBase kb = KnowledgeBase.builder()
@@ -159,7 +160,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         }
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void deleteByFileName(Long userId, String fileName) {
         LambdaQueryWrapper<KnowledgeBase> w = new LambdaQueryWrapper<>();
         w.eq(KnowledgeBase::getUserId, userId).eq(KnowledgeBase::getFileName, fileName);
@@ -170,7 +172,8 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         kbMapper.delete(w);
     }
 
-    @Override @Transactional
+    @Override
+    @Transactional
     public void renameFile(Long userId, String oldName, String newName) {
         LambdaQueryWrapper<KnowledgeBase> w = new LambdaQueryWrapper<>();
         w.eq(KnowledgeBase::getUserId, userId).eq(KnowledgeBase::getFileName, oldName);
@@ -181,101 +184,182 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         }
     }
 
+    /**
+     * 执行混合检索（向量语义相似度 + 关键词全文检索加权融合）
+     *
+     * @param userId   当前用户ID，用于权限过滤（该参数在此方法中未直接使用，由 Mapper SQL 通过 metadata 过滤）
+     * @param query    用户输入的原始查询文本
+     * @param category 知识库类型，如 USER / INTERVIEW / WEB，用于 metadata 过滤
+     * @param usage    知识用途，如 KNOWLEDGE / INTERVIEW，用于 metadata 过滤
+     * @param topK     返回最相关文档的数量
+     * @return 混合检索后排序的文档列表，如果无法检索则返回空列表
+     */
     @Override
     public List<Document> hybridSearch(Long userId, String query, String category, int topK) {
+        // 嵌入模型未初始化时直接返回空，防止空指针
         if (embeddingModel == null) {
             return List.of();
         }
+
+        // ===== 1. 构造查询向量与全文检索字符串 =====
+        // 调用阿里云 text-embedding-v3 生成 1024 维查询向量
         float[] emb = embeddingModel.embed(query);
+        // 将向量数组转为 PostgreSQL 支持的字符串格式，如 '[0.1,0.2,...]'
         String vecStr = vectorToString(emb);
+        // 将原始查询中的非字母/数字/中文替换为 " | "，构造 OR 语法给 tsquery
         String tsQuery = query.replaceAll("[^\\w\\u4e00-\\u9fff]", " | ");
-        return kbMapper.hybridSearch(vecStr, tsQuery, category, topK);
-    }
 
-    // ===== 内部 =====
-    /**
-     * 语义分块：按句号、换行、段落分隔符切分，保证每块是完整语义单元。
-     */
-    private List<Document> chunkToDocuments(String text, Long userId, String fileName,
-                                            String knowledgeType) {
-        List<Document> docs = new ArrayList<>();
-        // 先按段落分隔（两个以上换行）
-        String[] paragraphs = text.split("\\n\\s*\\n");
-        int globalIdx = 0;
-        StringBuilder currentChunk = new StringBuilder();
-
-        for (String para : paragraphs) {
-            para = para.trim();
-            if (para.isEmpty()) {
-                continue;
-            }
-            // 段落内按句号/问号/感叹号/分号切分句子，保留标点
-            String[] sentences = para.split("(?<=[。！？；])");
-            for (String sentence : sentences) {
-                sentence = sentence.trim();
-                if (sentence.isEmpty()) {
-                    continue;
-                }
-                // 当前块 + 新句子超过 800 字且当前块已有内容 → 提交当前块
-                if (currentChunk.length() > 0
-                        && currentChunk.length() + sentence.length() > 800) {
-                    String chunkText = currentChunk.toString().trim();
-                    if (!chunkText.isEmpty()) {
-                        String docId = UUID.randomUUID().toString();
-                        docs.add(new Document(docId, chunkText,
-                                Map.of("userId", userId.toString(),
-                                        "fileName", fileName,
-                                        "knowledgeType", knowledgeType,
-                                        "chunkIndex", String.valueOf(globalIdx++))));
-                    }
-                    currentChunk.setLength(0);
-                }
-                // 单句超过 800 字，截断
-                if (sentence.length() > 800 && currentChunk.length() == 0) {
-                    for (int i = 0; i < sentence.length(); i += 750) {
-                        String sub = sentence.substring(i,
-                                Math.min(i + 750, sentence.length()));
-                        String docId = UUID.randomUUID().toString();
-                        docs.add(new Document(docId, sub,
-                                Map.of("userId", userId.toString(),
-                                        "fileName", fileName,
-                                        "knowledgeType", knowledgeType,
-                                        "chunkIndex", String.valueOf(globalIdx++))));
-                    }
-                } else {
-                    if (currentChunk.length() > 0) {
-                        currentChunk.append(" ");
-                    }
-                    currentChunk.append(sentence);
-                }
-            }
-            // 段落结束，提交当前块
-            if (currentChunk.length() > 0) {
-                String chunkText = currentChunk.toString().trim();
-                if (!chunkText.isEmpty()) {
-                    String docId = UUID.randomUUID().toString();
-                    docs.add(new Document(docId, chunkText,
-                            Map.of("userId", userId.toString(),
-                                    "fileName", fileName,
-                                    "knowledgeType", knowledgeType,
-                                    "chunkIndex", String.valueOf(globalIdx++))));
-                }
-                currentChunk.setLength(0);
-            }
+        // ===== 2. 执行混合检索 SQL =====
+        // 调用 MyBatis Mapper，传入向量、tsQuery、分类、用途、topK
+        // 返回原始行数据，每行为 LinkedHashMap（保持列顺序）
+        List<LinkedHashMap<String, Object>> rawRows =
+                kbMapper.hybridSearch(vecStr, tsQuery, category, topK);
+        // 无结果直接返回空列表
+        if (rawRows == null || rawRows.isEmpty()) {
+            return List.of();
         }
-        // 剩余内容
-        if (currentChunk.length() > 0) {
-            String chunkText = currentChunk.toString().trim();
-            if (!chunkText.isEmpty()) {
-                String docId = UUID.randomUUID().toString();
-                docs.add(new Document(docId, chunkText,
-                        Map.of("userId", userId.toString(),
-                                "fileName", fileName,
-                                "knowledgeType", knowledgeType,
-                                "chunkIndex", String.valueOf(globalIdx))));
+
+        // ===== 3. 将原始行转换为 Spring AI Document 对象 =====
+        List<Document> docs = new ArrayList<>();
+        for (LinkedHashMap<String, Object> row : rawRows) {
+            try {
+                // 提取文档ID，若数据库未提供则生成 UUID
+                String id = String.valueOf(row.getOrDefault("id", UUID.randomUUID().toString()));
+                // 提取文本内容，默认空串
+                String content = (String) row.getOrDefault("content", "");
+
+                // ----- 解析 metadata 字段 -----
+                // PostgreSQL 的 JSONB 字段可能被 JDBC 驱动映射为 PGobject 或 Map，需要兼容处理
+                Map<String, Object> metadata = Map.of();
+                Object metaVal = row.get("metadata");
+                if (metaVal != null) {
+                    // 如果驱动直接解析为 Map（例如使用 MyBatis-Plus 的 JSON 处理器）
+                    if (metaVal instanceof Map) {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> m = (Map<String, Object>) metaVal;
+                        metadata = m;
+                    } else {
+                        // 否则可能为 PGobject 或 String，需要手动解析 JSON
+                        String metaJson = metaVal.toString();
+                        if (metaJson != null && !metaJson.isBlank() && !"{}".equals(metaJson)) {
+                            metadata = objectMapper.readValue(metaJson,
+                                    new TypeReference<Map<String, Object>>() {});
+                        }
+                    }
+                }
+
+                // ----- 提取混合检索相关性分数 -----
+                Object scoreVal = row.get("hybrid_score");
+                // 如果分数为 Number 类型，转为 double；否则设为 null
+                Double score = scoreVal instanceof Number
+                        ? Double.valueOf(((Number) scoreVal).doubleValue())
+                        : null;
+
+                // 构建 Spring AI 的 Document 对象
+                Document doc = Document.builder()
+                        .id(id)            // 文档唯一ID
+                        .text(content)     // 文本内容
+                        .metadata(metadata)// 元数据（包含 knowledgeType, usage, source 等）
+                        .score(score)      // 混合检索最终分数，用于排序或阈值判断
+                        .build();
+                docs.add(doc);
+            } catch (Exception e) {
+                // 单行解析失败不影响其他行，记录日志并跳过
+                log.warn("Failed to convert hybridSearch row to Document: {}", row, e);
             }
         }
         return docs;
+    }
+
+    // ===== 内部 =====
+
+    /** 每块目标 token 数 */
+    private static final int CHUNK_TOKENS = 500;
+    /** 块间重叠 token 数 */
+    private static final int OVERLAP_TOKENS = 100;
+    /** 中文约 1 token ≈ 1.5 字符，取保守值 1.3 */
+    private static final double TOKEN_TO_CHAR_RATIO = 1.3;
+
+    /**
+     * Token 级滑动窗口切块：每块约 500 token，重叠 100 token。
+     * <p>
+     * 先按段落/句子拆分，然后以滑动窗口方式组装 chunk，
+     * 确保每块在句子边界断开，相邻块共享约 100 token 的上下文。
+     * </p>
+     */
+    private List<Document> chunkToDocuments(String text, Long userId, String fileName,
+                                            String knowledgeType) {
+        int chunkChars = (int) (CHUNK_TOKENS * TOKEN_TO_CHAR_RATIO);   // ≈650 chars
+        int overlapChars = (int) (OVERLAP_TOKENS * TOKEN_TO_CHAR_RATIO); // ≈130 chars
+
+        // 1. 拆成句子列表
+        List<String> sentences = new ArrayList<>();
+        String[] paragraphs = text.split("\\n\\s*\\n");
+        for (String para : paragraphs) {
+            para = para.trim();
+            if (para.isEmpty()) continue;
+            // 按句末标点切分，保留标点
+            String[] parts = para.split("(?<=[。！？；])");
+            for (String s : parts) {
+                s = s.trim();
+                if (!s.isEmpty()) sentences.add(s);
+            }
+        }
+
+        // 2. 滑动窗口组装 chunk
+        List<Document> docs = new ArrayList<>();
+        int globalIdx = 0;
+        int i = 0;
+        while (i < sentences.size()) {
+            StringBuilder chunk = new StringBuilder();
+            int charCount = 0;
+            int j = i;
+            // 正向填充到 chunkChars 上限
+            while (j < sentences.size() && charCount + sentences.get(j).length() <= chunkChars) {
+                if (!chunk.isEmpty()) chunk.append(" ");
+                chunk.append(sentences.get(j));
+                charCount = chunk.length();
+                j++;
+            }
+            // 如果单句就超长，强制放入（截断）
+            if (chunk.isEmpty() && j < sentences.size()) {
+                String longSent = sentences.get(j);
+                chunk.append(longSent, 0, Math.min(longSent.length(), chunkChars));
+                j++;
+            }
+
+            String chunkText = chunk.toString().trim();
+            if (!chunkText.isEmpty()) {
+                String docId = UUID.randomUUID().toString();
+                docs.add(new Document(docId, chunkText,
+                        buildMetadata(userId, fileName, knowledgeType, globalIdx++)));
+            }
+
+            // 计算下一个窗口起点：回退 overlapChars 个字符
+            if (j >= sentences.size()) break; // 已到末尾
+
+            int overlapRemaining = overlapChars;
+            int k = j - 1;
+            while (k > i && overlapRemaining > 0) {
+                overlapRemaining -= sentences.get(k).length();
+                k--;
+            }
+            i = Math.max(i + 1, k + 1);
+            // 防止死循环：如果 i 没有前进，强制前进
+            if (i >= j) i = j;
+        }
+
+        return docs;
+    }
+
+    private Map<String, Object> buildMetadata(Long userId, String fileName,
+                                               String knowledgeType, int chunkIdx) {
+        Map<String, Object> meta = new HashMap<>();
+        meta.put("userId", userId.toString());
+        meta.put("fileName", fileName);
+        meta.put("knowledgeType", knowledgeType);
+        meta.put("chunkIndex", String.valueOf(chunkIdx));
+        return meta;
     }
 
     private String extractDocId(String metadata) {
@@ -323,5 +407,41 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     private String getFileExt(MultipartFile f) {
         String n = f.getOriginalFilename(); if (n == null) return "unknown";
         int d = n.lastIndexOf('.'); return d == -1 ? "unknown" : n.substring(d + 1).toLowerCase();
+    }
+
+    // ===== vector_store 直接写入（替代 Spring AI VectorStore） =====
+
+    /**
+     * 将 Document 列表写入 public.vector_store。
+     * 手动调用 EmbeddingModel 生成向量 + MyBatis insert。
+     */
+    private void addToVectorStore(List<Document> docs) {
+        if (docs == null || docs.isEmpty() || embeddingModel == null) {
+            return;
+        }
+        for (Document doc : docs) {
+            String content = doc.getText();
+            if (content == null || content.isBlank()) {
+                continue;
+            }
+            try {
+                float[] emb = embeddingModel.embed(content);
+                String vecStr = vectorToString(emb);
+                String metaJson = objectMapper.writeValueAsString(doc.getMetadata());
+                kbMapper.insertVectorStore(doc.getId(), content, metaJson, vecStr);
+            } catch (Exception e) {
+                log.error("Failed to insert vector for docId={}", doc.getId(), e);
+            }
+        }
+    }
+
+    /**
+     * 按 ID 删除 public.vector_store 记录。
+     */
+    private void deleteFromVectorStoreByIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        kbMapper.deleteFromVectorStore(ids);
     }
 }

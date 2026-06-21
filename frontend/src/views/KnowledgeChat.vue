@@ -30,9 +30,6 @@
 
       <template v-for="(m, i) in messages" :key="i">
         <ChatMessage :role="m.role" :content="m.content" />
-        <p v-if="m.role === 'ai' && isFinance(m.content)" class="finance-notice">
-          ⚠️ 以上内容基于互联网搜索结果整理，仅供参考。AI 可能会出错，请保持独立判断。
-        </p>
       </template>
 
       <!-- 流式输出中 -->
@@ -132,9 +129,6 @@ function toggleVoice() {
 }
 function stopVoice() { if (recognition) { recognition.stop(); isRecording.value = false } }
 
-function isFinance(content: string) {
-  return /金融|理财|股票|基金|证券|银行|贷款|利息|保险|投资|汇率|黄金|期货|债券|信托/.test(content || '')
-}
 const chatAreaRef = ref<HTMLElement>()
 const inputRef = ref<HTMLInputElement>()
 let abortController: AbortController | null = null
@@ -280,12 +274,6 @@ onMounted(() => {
   .chat-title { font-size:16px;font-weight:600;color:var(--color-text);margin-bottom:22px;padding-bottom:14px;border-bottom:1px solid var(--color-border); }
 }
 
-// AI 回复下方独立免责声明
-.ai-disclaimer {
-  font-size: 11px; color: var(--color-text-muted); margin: -8px 0 20px 46px;
-  line-height: 1.5; opacity: 0.75;
-}
-
 // 流式消息行
 .msg-row { display:flex;gap:12px;margin-bottom:22px;align-items:flex-start;
   .msg-avatar { width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;flex-shrink:0;
@@ -332,11 +320,10 @@ onMounted(() => {
 </style>
 <style lang="scss" scoped>
 .global-disclaimer { font-size: 11px; color: var(--color-text-muted) !important; text-align: center; margin: 6px auto 0; max-width: 500px; line-height: 1.4; }
-.finance-notice { font-size: 11px; color: #e6a23c; text-align: left; margin: -12px 0 18px 46px; line-height: 1.4; }
+.loading-more { text-align: center; font-size: 12px; color: var(--color-text-muted); padding: 8px 0; }
+.no-more { text-align: center; font-size: 11px; color: var(--color-text-muted); padding: 12px 0 4px; opacity: 0.6; }
 .streaming-bubble {
   min-height: 20px;
   :deep(.markdown-body) { font-size: 13px; }
 }
-.loading-more { text-align: center; font-size: 12px; color: var(--color-text-muted); padding: 8px 0; }
-.no-more { text-align: center; font-size: 11px; color: var(--color-text-muted); padding: 12px 0 4px; opacity: 0.6; }
 </style>

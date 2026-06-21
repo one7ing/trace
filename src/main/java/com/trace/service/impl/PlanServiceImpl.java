@@ -17,6 +17,9 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
+import static com.constant.constant.RabbitMQ.PLAN_EXCHANGE;
+import static com.constant.constant.RabbitMQ.PLAN_ROUTING_KEY;
+
 
 @Slf4j
 @Service
@@ -37,7 +40,7 @@ public class PlanServiceImpl implements PlanService {
                 .source("ai")
                 .build();
         planMapper.insert(p);
-        rabbitTemplate.convertAndSend(RabbitMQConfig.PLAN_EXCHANGE, RabbitMQConfig.PLAN_ROUTING_KEY,
+        rabbitTemplate.convertAndSend(PLAN_EXCHANGE, PLAN_ROUTING_KEY,
                 Map.of("planId", p.getId(), "userId", userId, "goal", goal));
         return p;
     }

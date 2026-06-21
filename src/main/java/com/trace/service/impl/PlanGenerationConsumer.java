@@ -14,6 +14,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.List;
 import java.util.Map;
 
+import static com.constant.constant.RabbitMQ.PLAN_QUEUE;
+
 @Slf4j
 @Component
 @RequiredArgsConstructor
@@ -23,7 +25,7 @@ public class PlanGenerationConsumer {
     private final List<Agent> agents;
     private final PlanSseRegistry sseRegistry;
 
-    @RabbitListener(queues = RabbitMQConfig.PLAN_QUEUE)
+    @RabbitListener(queues = PLAN_QUEUE)
     @Transactional
     public void handlePlanGeneration(Map<String, Object> msg) {
         Long planId = Long.valueOf(msg.get("planId").toString());
