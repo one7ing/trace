@@ -24,15 +24,15 @@ public class WeeklyReportScheduler {
         RLock lock = redissonClient.getLock(LOCK_KEY);
         try {
             if (lock.tryLock(0, 5, TimeUnit.MINUTES)) {
-                log.info("Starting weekly report task...");
+                log.info("开始执行周报定时任务...");
                 var users = userMapper.selectList(null);
                 int ok = 0, fail = 0;
                 for (var u : users) {
                     try { reportService.generateWeeklyReport(u.getId()); ok++; }
-                    catch (IllegalArgumentException e) { log.debug("Already exists for {}", u.getId()); }
-                    catch (Exception e) { log.error("Failed for {}", u.getId(), e); fail++; }
+                    catch (IllegalArgumentException e) { log.debug("用户{}周报已存在", u.getId()); }
+                    catch (Exception e) { log.error("用户{}周报生成失败: WeeklyReportScheduler", u.getId(), e); fail++; }
                 }
-                log.info("Weekly report done: {} ok, {} fail", ok, fail);
+                log.info("周报定时任务完成: 成功{}，失败{}", ok, fail);
             }
         } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         finally { if (lock.isHeldByCurrentThread()) lock.unlock(); }

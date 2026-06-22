@@ -31,9 +31,9 @@ public class PlanGenerationConsumer {
         Long planId = Long.valueOf(msg.get("planId").toString());
         Long userId = Long.valueOf(msg.get("userId").toString());
         String goal = (String) msg.get("goal");
-        log.info("RabbitMQ: generating plan planId={}", planId);
+        log.info("RabbitMQ消费者: 开始生成学习计划 planId={}", planId);
         StudyPlan plan = planMapper.selectById(planId);
-        if (plan == null) { log.error("Plan not found: {}", planId); return; }
+        if (plan == null) { log.error("学习计划未找到: planId={}", planId); return; }
         try {
             Agent pa = agents.stream().filter(a -> "plan".equals(a.name())).findFirst().orElse(null);
             String content = pa != null ? pa.handle("请为以下目标制定详细中文学习计划：\n" + goal, userId) : "服务暂不可用";
@@ -45,9 +45,9 @@ public class PlanGenerationConsumer {
                     "planId", planId, "goal", goal,
                     "planContent", content, "planUrl", url,
                     "totalDuration", plan.getTotalDuration() != null ? plan.getTotalDuration() : 0));
-            log.info("RabbitMQ: plan completed planId={}", planId);
+            log.info("RabbitMQ消费者: 学习计划生成完成 planId={}", planId);
         } catch (Exception e) {
-            log.error("RabbitMQ: plan failed planId={}", planId, e);
+            log.error("RabbitMQ消费者: 学习计划生成失败 planId={}, 错误位置=PlanGenerationConsumer.handlePlanGeneration", planId, e);
             String errMsg = "生成失败：" + e.getMessage();
             plan.setPlanContent(errMsg);
             plan.setPlanUrl("");

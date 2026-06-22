@@ -49,7 +49,7 @@ public class KnowledgeAgent extends AbstractAgent {
 
     @Override
     public boolean canHandle(String userInput, Long userId) {
-        return !matchKeywords(userInput, "面试", "出题", "日记", "周报", "计划");
+        return !matchKeywords(userInput, "刷题", "练习", "题目", "做题", "面试", "出题", "日记", "周报", "计划");
     }
 
     @Override
@@ -57,16 +57,15 @@ public class KnowledgeAgent extends AbstractAgent {
         String rewritten = queryRewriteAgent.rewrite(
                 userId, userInput, queryRewriteAgent.getRecentHistory(userId));
         IntentType intent = classifyIntent(userInput);
-        log.info("Intent classified: '{}' → {}", rewritten, intent);
+        log.info("意图分类结果: '{}' → {}", rewritten, intent);
 
         String systemPrompt;
         if (intent == IntentType.WEB_SEARCH) {
-            String context = buildContext(userId, rewritten);
             systemPrompt = loadSystemPrompt()
                     + "\n\n## ⚠️ 用户询问的是需要联网才能回答的实时问题。"
                     + "请调用联网搜索获取最新信息，搜索完成后直接给出答案。"
                     + "绝对不要向用户说【正在搜索】、【调用工具】之类的话。"
-                    + "\n\n" + context;
+                    + "\n\n" + userInput;
         } else {
             StringBuilder kbInfo = new StringBuilder();
             if (intent == IntentType.SEARCH) {
@@ -107,7 +106,7 @@ public class KnowledgeAgent extends AbstractAgent {
                     String content = acc.get().toString();
                     if (!content.isBlank()) memoryService.saveChatHistory(userId, "ai", content);
                 })
-                .doOnError(e -> log.error("KnowledgeAgent stream error: userId={}", userId, e));
+                .doOnError(e -> log.error("KnowledgeAgent流式响应出错: userId={}", userId, e));
     }
 
     private void triggerMemoryExtractIfNeeded(Long userId) {
@@ -123,10 +122,9 @@ public class KnowledgeAgent extends AbstractAgent {
             }
             rabbitTemplate.convertAndSend(MEMORY_EXTRACT_EXCHANGE,
                     MEMORY_EXTRACT_ROUTING_KEY, Map.of("userId", userId));
-            log.info("Memory extract triggered: userId={}", userId);
-            stringRedisTemplate.opsForValue().set(key, String.valueOf(now));
+            log.info("记忆提取消息已发送: userId={}", userId);
         } catch (Exception e) {
-            log.warn("Failed to trigger memory extract: userId={}", userId, e);
+            log.warn("发送记忆提取消息失败: userId={}", userId, e);
         }
     }
 

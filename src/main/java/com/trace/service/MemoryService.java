@@ -10,7 +10,10 @@ public interface MemoryService {
     void saveChatHistory(Long userId, String role, String content);
     List<ChatHistory> getRecentChats(Long userId, int limit);
     List<ChatHistory> getChatsBefore(Long userId, Long beforeId, int limit);
+    /** 获取全部短期对话上下文 */
     List<Map<String, String>> getChatContext(Long userId);
+    /** 获取最近 limit 条短期对话上下文 */
+    List<Map<String, String>> getChatContext(Long userId, int limit);
 
     void saveMemory(Long userId, String content, String sourceType);
     void saveMemory(Long userId, String content, String sourceType, String embedding);

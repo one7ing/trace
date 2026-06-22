@@ -31,7 +31,7 @@ public class AgentRouter {
     public Agent route(String userInput, Long userId) {
         for (Agent agent : agents) {
             if (!"knowledge".equals(agent.name()) && agent.canHandle(userInput, userId)) {
-                log.info("AgentRouter: routed to {} for userId={}", agent.name(), userId);
+                log.info("AgentRouter: 已路由到 {}，userId={}", agent.name(), userId);
                 return agent;
             }
         }

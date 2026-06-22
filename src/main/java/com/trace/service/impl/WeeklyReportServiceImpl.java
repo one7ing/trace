@@ -29,7 +29,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
     private final PdfService pdfService;
     private final WeeklyReportMapper reportMapper;
     private final DiaryMapper diaryMapper;
-    private final InterviewRecordMapper interviewRecordMapper;
+    private final PracticeRecordMapper practiceRecordMapper;
 
     private static final String SYSTEM_PROMPT = """
             你是 Trace 系统的 AI 周报生成器。基于用户一周活动数据，客观生成成长周报。
@@ -46,14 +46,14 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
             throw new IllegalArgumentException("本周周报已生成");
 
         List<Diary> diaries = diaryMapper.findByUserIdAndCreatedAtBetween(userId, ws.atStartOfDay(), we.atTime(LocalTime.MAX));
-        List<InterviewRecord> interviews = interviewRecordMapper.findByUserIdAndCompletedAtBetween(userId, ws.atStartOfDay(), we.atTime(LocalTime.MAX));
+        List<PracticeRecord> practices = practiceRecordMapper.findByUserIdAndCompletedAtBetween(userId, ws.atStartOfDay(), we.atTime(LocalTime.MAX));
         List<LongTermMemory> mems = memoryService.getRecentMemories(userId, 20);
 
         StringBuilder ctx = new StringBuilder();
         ctx.append("## 本周日记（").append(diaries.size()).append("篇）\n");
         for (Diary d : diaries) ctx.append("- [").append(d.getCreatedAt().toLocalDate()).append("] ").append(d.getTitle()).append(" (").append(d.getMoodTag()).append(")\n");
-        ctx.append("\n## 本周面试（").append(interviews.size()).append("次）\n");
-        for (InterviewRecord ir : interviews) ctx.append("- ").append(ir.getIndustry()).append(" | 平均分：").append(ir.getAvgScore()).append("\n");
+        ctx.append("\n## 本周刷题（").append(practices.size()).append("次）\n");
+        for (PracticeRecord pr : practices) ctx.append("- ").append(pr.getTopic()).append(" | 答对：").append(pr.getCorrectCount()).append("/").append(pr.getTotalQuestions()).append(" | 平均分：").append(pr.getScore()).append("\n");
         ctx.append("\n## 本周知识探索\n");
         for (LongTermMemory m : mems) ctx.append("- ").append(m.getContent()).append("\n");
 
@@ -68,10 +68,10 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
         try {
             int extracted = memoryExtractAgent.extractAndSave(
                     userId, content, "weekly_report");
-            log.info("Weekly report memory extracted: userId={}, count={}",
+            log.info("周报记忆提取完成: userId={}, 提取条数={}",
                     userId, extracted);
         } catch (Exception e) {
-            log.warn("Memory extraction after weekly report failed: userId={}",
+            log.warn("周报记忆提取失败: userId={}, 错误位置=WeeklyReportServiceImpl.generate",
                     userId, e);
         }
 

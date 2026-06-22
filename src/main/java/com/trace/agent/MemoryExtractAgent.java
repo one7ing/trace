@@ -34,7 +34,7 @@ public class MemoryExtractAgent {
         if (sourceText == null || sourceText.isBlank()) return 0;
         try {
             String result = chatClientBuilder.build().prompt().system(cachedPrompt).user(sourceText).call().content();
-            if (result == null || result.contains("无")) { log.debug("Nothing worth recording"); return 0; }
+            if (result == null || result.contains("无")) { log.debug("无可记录内容"); return 0; }
             List<String> items = Arrays.stream(result.split("\n")).map(String::trim)
                     .filter(line -> line.startsWith("- ")).map(line -> line.substring(2).trim())
                     .filter(line -> !line.isEmpty()).toList();
@@ -44,15 +44,15 @@ public class MemoryExtractAgent {
                     String embedding = null;
                     if (embeddingModel != null) {
                         try { float[] emb = embeddingModel.embed(item); embedding = vectorToString(emb); }
-                        catch (Exception e) { log.warn("Failed to generate embedding", e); }
+                        catch (Exception e) { log.warn("生成embedding向量失败: MemoryExtractAgent.extractAndSave", e); }
                     }
                     memoryService.saveMemory(userId, item, sourceType, embedding);
                     saved++;
-                } catch (Exception e) { log.warn("Failed to save memory item", e); }
+                } catch (Exception e) { log.warn("保存单条记忆失败: MemoryExtractAgent.extractAndSave", e); }
             }
-            log.info("Memory extracted: userId={}, sourceType={}, saved={}/{}", userId, sourceType, saved, items.size());
+            log.info("记忆提取完成: userId={}, 来源类型={}, 保存成功{}/{}", userId, sourceType, saved, items.size());
             return saved;
-        } catch (Exception e) { log.error("Memory extraction failed: userId={}", userId, e); return 0; }
+        } catch (Exception e) { log.error("记忆提取整体失败: userId={}, 错误位置=MemoryExtractAgent.extractAndSave", userId, e); return 0; }
     }
 
     @PostConstruct

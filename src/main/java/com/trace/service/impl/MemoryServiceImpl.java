@@ -56,7 +56,7 @@ public class MemoryServiceImpl implements MemoryService {
             if (size != null && size > MAX_SHORT_TERM)
                 stringRedisTemplate.opsForList().trim(key, -MAX_SHORT_TERM, -1);
         } catch (Exception e) {
-            log.warn("Failed to save short-term context to Redis: userId={}", userId, e);
+            log.warn("短期上下文保存至Redis失败: userId={}", userId, e);
         }
         int count = chatHistoryMapper.countByUserId(userId);
         if (count >= MAX_CHAT_HISTORY) {
@@ -92,10 +92,35 @@ public class MemoryServiceImpl implements MemoryService {
                     Map<String, String> map = objectMapper.readValue(json,
                             objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, String.class));
                     result.add(map);
-                } catch (Exception e) { log.debug("Skipping unparseable entry"); }
+                } catch (Exception e) { log.debug("跳过无法解析的条目"); }
             }
             return result;
         } catch (Exception e) {
+            log.warn("获取短期上下文失败，已清除Redis缓存: userId={}", userId, e);
+            stringRedisTemplate.delete(key);
+            return List.of();
+        }
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public List<Map<String, String>> getChatContext(Long userId, int limit) {
+        String key = REDIS_KEY_PREFIX + userId;
+        try {
+            List<String> entries = stringRedisTemplate.opsForList().range(key, -limit, -1);
+            if (entries == null || entries.isEmpty()) return List.of();
+            List<Map<String, String>> result = new ArrayList<>();
+            for (String json : entries) {
+                if (json == null || json.isBlank()) continue;
+                try {
+                    Map<String, String> map = objectMapper.readValue(json,
+                            objectMapper.getTypeFactory().constructMapType(LinkedHashMap.class, String.class, String.class));
+                    result.add(map);
+                } catch (Exception e) { log.debug("跳过无法解析的条目"); }
+            }
+            return result;
+        } catch (Exception e) {
+            log.warn("获取最近{}条短期上下文失败，已清除Redis缓存: userId={}", limit, userId, e);
             stringRedisTemplate.delete(key);
             return List.of();
         }
@@ -114,25 +139,24 @@ public class MemoryServiceImpl implements MemoryService {
         if (embedding != null) {
             List<Map<String, Object>> similar = memoryMapper.findSimilarMemory(userId, embedding, SIMILARITY_THRESHOLD);
             if (similar != null && !similar.isEmpty()) {
-                Map<String, Object> match = similar.get(0);
+                Map<String, Object> match = similar.getFirst();
                 Long existingId = ((Number) match.get("id")).longValue();
                 double sim = ((Number) match.get("similarity")).doubleValue();
-                log.info("Memory merged: userId={}, sim={}, oldId={}", userId, String.format("%.3f", sim), existingId);
+                log.info("长期记忆合并: userId={}, 相似度={}, 旧记录ID={}", userId, String.format("%.3f", sim), existingId);
                 memoryMapper.updateContentAndEmbedding(existingId, content, embedding);
                 return;
             }
         } else {
-            if (isDuplicate(userId, content)) { log.debug("Duplicate skipped"); return; }
+            if (isDuplicate(userId, content)) { log.debug("重复内容已跳过"); return; }
         }
-        LongTermMemory memory = LongTermMemory.builder().userId(userId).content(content).sourceType(sourceType).embedding(embedding).build();
-        memoryMapper.insert(memory);
+        memoryMapper.insertembding(userId,content,sourceType,embedding);
         int currentCount = memoryMapper.countByUserId(userId);
         if (currentCount > MAX_MEMORIES) {
             int excess = currentCount - MAX_MEMORIES;
             List<Long> leastRelevant = memoryMapper.findLeastRelevantIds(userId, excess);
             if (leastRelevant != null && !leastRelevant.isEmpty()) {
                 memoryMapper.deleteBatchIds(leastRelevant);
-                log.info("Evicted {} least-relevant memories: userId={}", leastRelevant.size(), userId);
+                log.info("已淘汰{}条低相关度长期记忆: userId={}", leastRelevant.size(), userId);
             } else {
                 memoryMapper.deleteOldestByUserId(userId, excess);
             }
@@ -168,7 +192,7 @@ public class MemoryServiceImpl implements MemoryService {
                 String vecStr = vectorToString(emb);
                 List<LongTermMemory> results = memoryMapper.searchByVector(userId, vecStr, limit);
                 if (results != null && !results.isEmpty()) return results;
-            } catch (Exception e) { log.warn("Semantic search failed, falling back", e); }
+            } catch (Exception e) { log.warn("语义搜索失败，回退到最近记忆: userId={}", userId, e); }
         }
         return getRecentMemories(userId, limit);
     }

@@ -13,9 +13,9 @@ public class RabbitMQConfig {
     public static final String PLAN_EXCHANGE = "trace.plan.exchange";
     public static final String PLAN_ROUTING_KEY = "trace.plan.generate";
 
-    public static final String INTERVIEW_EVAL_QUEUE = "trace.interview.eval";
-    public static final String INTERVIEW_EVAL_EXCHANGE = "trace.interview.exchange";
-    public static final String INTERVIEW_EVAL_ROUTING_KEY = "trace.interview.eval";
+    public static final String PRACTICE_JUDGE_QUEUE = "trace.practice.judge";
+    public static final String PRACTICE_JUDGE_EXCHANGE = "trace.practice.exchange";
+    public static final String PRACTICE_JUDGE_ROUTING_KEY = "trace.practice.judge";
 
     @Bean
     public Queue planGenerateQueue() {
@@ -33,19 +33,19 @@ public class RabbitMQConfig {
     }
 
     @Bean
-    public Queue interviewEvalQueue() {
-        return QueueBuilder.durable(INTERVIEW_EVAL_QUEUE).build();
+    public Queue practiceJudgeQueue() {
+        return QueueBuilder.durable(PRACTICE_JUDGE_QUEUE).build();
     }
 
     @Bean
-    public DirectExchange interviewEvalExchange() {
-        return new DirectExchange(INTERVIEW_EVAL_EXCHANGE);
+    public DirectExchange practiceJudgeExchange() {
+        return new DirectExchange(PRACTICE_JUDGE_EXCHANGE);
     }
 
     @Bean
-    public Binding interviewEvalBinding(Queue interviewEvalQueue, DirectExchange interviewEvalExchange) {
-        return BindingBuilder.bind(interviewEvalQueue).to(interviewEvalExchange)
-                .with(INTERVIEW_EVAL_ROUTING_KEY);
+    public Binding practiceJudgeBinding(Queue practiceJudgeQueue, DirectExchange practiceJudgeExchange) {
+        return BindingBuilder.bind(practiceJudgeQueue).to(practiceJudgeExchange)
+                .with(PRACTICE_JUDGE_ROUTING_KEY);
     }
 
     // === 长期记忆异步提取 ===

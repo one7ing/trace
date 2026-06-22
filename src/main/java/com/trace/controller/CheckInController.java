@@ -3,6 +3,8 @@ package com.trace.controller;
 import com.trace.dto.ApiResponse;
 import com.trace.entity.DailyCheckIn;
 import com.trace.mapper.DailyCheckInMapper;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -15,9 +17,7 @@ import java.time.temporal.TemporalAdjusters;
 import java.util.*;
 import java.util.stream.Collectors;
 
-/**
- * 打卡控制器 —— 每日签到打卡。
- */
+@Tag(name = "每日打卡", description = "学习计划每日签到打卡")
 @RestController
 @RequestMapping("/api/checkin")
 @RequiredArgsConstructor
@@ -25,7 +25,7 @@ public class CheckInController {
 
     private final DailyCheckInMapper checkInMapper;
 
-    /** 今日打卡 */
+    @Operation(summary = "今日打卡", description = "对当前活跃计划进行每日签到")
     @PostMapping("")
     public ResponseEntity<ApiResponse<Map<String, Object>>> checkIn(
             @AuthenticationPrincipal Long userId,
@@ -50,7 +50,7 @@ public class CheckInController {
                 Map.of("checked", true, "date", today.toString())));
     }
 
-    /** 本周打卡情况（七天） */
+    @Operation(summary = "本周打卡", description = "查看本周每日打卡状态（周一至周日）")
     @GetMapping("/week")
     public ResponseEntity<ApiResponse<Map<String, Object>>> weekStatus(
             @AuthenticationPrincipal Long userId,

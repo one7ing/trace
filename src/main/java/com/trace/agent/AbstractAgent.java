@@ -84,15 +84,15 @@ public abstract class AbstractAgent implements Agent {
                 .takeUntil(token -> stringRedisTemplate.opsForValue().get(cancelKey(userId)) != null)
                 .doOnCancel(() -> {
                     stringRedisTemplate.delete(cancelKey(userId));
-                    log.info("Agent stream cancelled: userId={}, agent={}", userId, name());
+                    log.info("Agent流式响应已取消: userId={}, agent={}", userId, name());
                 })
                 .doOnComplete(() -> {
                     stringRedisTemplate.delete(cancelKey(userId));
-                    log.debug("Agent stream completed: userId={}, agent={}", userId, name());
+                    log.debug("Agent流式响应已完成: userId={}, agent={}", userId, name());
                 })
                 .doOnError(e -> {
                     stringRedisTemplate.delete(cancelKey(userId));
-                    log.error("Agent stream error: userId={}, agent={}", userId, name(), e);
+                    log.error("Agent流式响应出错: userId={}, agent={}", userId, name(), e);
                 });
     }
 
@@ -106,7 +106,7 @@ public abstract class AbstractAgent implements Agent {
                     .call()
                     .content();
         } catch (Exception e) {
-            log.error("Agent handle error: userId={}, agent={}", userId, name(), e);
+            log.error("Agent.handle调用失败: userId={}, agent={}, 错误位置=AbstractAgent.handle", userId, name(), e);
             return "处理出错：" + e.getMessage();
         }
     }

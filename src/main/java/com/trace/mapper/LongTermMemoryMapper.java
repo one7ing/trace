@@ -20,4 +20,5 @@ public interface LongTermMemoryMapper extends BaseMapper<LongTermMemory> {
     void updateContentAndEmbedding(@Param("id") Long id, @Param("content") String content, @Param("embedding") String embedding);
     List<Long> findLeastRelevantIds(@Param("userId") Long userId, @Param("count") int count);
     List<LongTermMemory> searchByVector(@Param("userId") Long userId, @Param("queryVec") String queryVec, @Param("limit") int limit);
+    void insertembding(@Param("userId") Long userId,@Param("content") String content,@Param("sourceType") String sourceType,@Param("embedding") String embedding);
 }

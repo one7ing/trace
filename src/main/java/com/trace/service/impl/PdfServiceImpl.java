@@ -75,7 +75,7 @@ public class PdfServiceImpl implements PdfService {
                             java.nio.file.StandardCopyOption.REPLACE_EXISTING);
                     String path = tmp.toAbsolutePath().toString();
                     if (path.endsWith(".ttc")) path += ",0";
-                    log.info("Loaded font from classpath: {} → {}", cp, path);
+                    log.info("从classpath加载字体: {} → {}", cp, path);
                     return path;
                 }
             } catch (Exception ignored) { /* try next */ }
@@ -93,13 +93,13 @@ public class PdfServiceImpl implements PdfService {
                 if (Files.exists(Path.of(sf))) {
                     String path = sf;
                     if (path.endsWith(".ttc")) path += ",0";
-                    log.info("Using system font: {}", path);
+                    log.info("使用系统字体: {}", path);
                     return path;
                 }
             } catch (Exception ignored) { /* try next */ }
         }
 
-        log.warn("No Chinese font file found; PDF may not render Chinese characters correctly");
+        log.warn("未找到中文字体文件，PDF可能无法正确渲染中文字符");
         return null;
     }
 
@@ -118,7 +118,7 @@ public class PdfServiceImpl implements PdfService {
                     BucketExistsArgs.builder().bucket(bucket).build());
             if (!found) {
                 minioClient.makeBucket(MakeBucketArgs.builder().bucket(bucket).build());
-                log.info("Created MinIO bucket: {}", bucket);
+                log.info("MinIO存储桶已创建: {}", bucket);
             }
             String policy = """
                 {
@@ -135,9 +135,9 @@ public class PdfServiceImpl implements PdfService {
                 """.formatted(bucket);
             minioClient.setBucketPolicy(
                     SetBucketPolicyArgs.builder().bucket(bucket).config(policy).build());
-            log.info("Set public-read policy on bucket: {}", bucket);
+            log.info("MinIO存储桶已设置公开读策略: {}", bucket);
         } catch (Exception e) {
-            log.error("Failed to ensure MinIO bucket exists", e);
+            log.error("确保MinIO存储桶存在失败: PdfServiceImpl.ensureBucketExists", e);
         }
     }
 
@@ -146,15 +146,16 @@ public class PdfServiceImpl implements PdfService {
         try {
             byte[] pdfBytes = generatePdf(title, content);
             String objectName = generateObjectName(title);
+            //上传文件
             minioClient.putObject(PutObjectArgs.builder()
                     .bucket(minioConfig.getBucket()).object(objectName)
                     .stream(new ByteArrayInputStream(pdfBytes), pdfBytes.length, -1)
                     .contentType("application/pdf").build());
             String url = minioConfig.getEndpoint() + "/" + minioConfig.getBucket() + "/" + objectName;
-            log.info("PDF uploaded: {}", url);
+            log.info("PDF已上传: {}", url);
             return url;
         } catch (Exception e) {
-            log.error("Failed to generate and upload PDF: title={}", title, e);
+            log.error("PDF生成并上传失败: title={}, 错误位置=PdfServiceImpl.generateAndUpload", title, e);
             throw new RuntimeException("PDF 生成失败: " + e.getMessage(), e);
         }
     }
@@ -182,9 +183,9 @@ public class PdfServiceImpl implements PdfService {
             try {
                 renderer.getFontResolver().addFont(
                         chineseFontPath, BaseFont.IDENTITY_H, BaseFont.EMBEDDED);
-                log.debug("Registered font for PDF: {}", chineseFontPath);
+                log.debug("PDF字体已注册: {}", chineseFontPath);
             } catch (Exception e) {
-                log.warn("Failed to register font {}: {}", chineseFontPath, e.getMessage());
+                log.warn("PDF字体注册失败 {}: {}, 错误位置=PdfServiceImpl.generatePdf", chineseFontPath, e.getMessage());
             }
         }
 

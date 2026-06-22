@@ -149,7 +149,7 @@ async function sendMessage() {
       body: JSON.stringify({ message: text, domain: selectedDomain.value || undefined }),
       signal: abortController.signal,
     })
-    if (!resp.ok || !resp.body) throw new Error('fail')
+    if (!resp.ok || !resp.body) throw new Error('请求失败，响应无效: KnowledgeChat.sendMessage')
     const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = ''
     while (true) {
       const { done, value } = await reader.read()

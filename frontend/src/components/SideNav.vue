@@ -50,18 +50,18 @@
       <span>Trace 问答</span>
     </router-link>
 
-    <router-link to="/interview" class="nav-item" :class="{ active: isActive('/interview') && !isActive('/interview/history') }">
+    <router-link to="/practice" class="nav-item" :class="{ active: isActive('/practice') && !isActive('/practice/history') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
-        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/><rect x="8" y="2" width="8" height="4" rx="1" ry="1"/>
       </svg>
-      <span>模拟面试</span>
+      <span>刷题练习</span>
     </router-link>
 
-    <router-link to="/interview/history" class="nav-item" :class="{ active: isActive('/interview/history') }">
+    <router-link to="/practice/history" class="nav-item" :class="{ active: isActive('/practice/history') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
-      <span>面试记录</span>
+      <span>刷题记录</span>
     </router-link>
 
     <router-link to="/knowledge-base" class="nav-item" :class="{ active: isActive('/knowledge-base') }">

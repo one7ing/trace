@@ -2,8 +2,10 @@ package com.trace.controller;
 
 import com.trace.dto.ApiResponse;
 import com.trace.entity.KnowledgeBase;
-import com.trace.service.impl.InterviewBankService;
+import com.trace.service.QuestionBankService;
 import com.trace.service.KnowledgeBaseService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
@@ -13,21 +15,22 @@ import org.springframework.web.multipart.MultipartFile;
 import java.util.List;
 import java.util.Map;
 
+@Tag(name = "知识库管理", description = "文件上传、向量检索、混合检索、题库导入")
 @RestController
 @RequestMapping("/api/knowledge-base")
 @RequiredArgsConstructor
 public class KnowledgeBaseController {
     private final KnowledgeBaseService kbService;
-    private final InterviewBankService interviewBankService;
+    private final QuestionBankService questionBankService;
 
-    /** 一键导入题库到面试知识库 */
+    @Operation(summary = "导入题库", description = "从题库文件解析 Q&A 并写入 question_bank 表")
     @PostMapping("/import-bank")
     public ResponseEntity<ApiResponse<Integer>> importBank() {
-        int count = interviewBankService.importQuestionBank();
+        int count = questionBankService.importQuestionBank();
         return ResponseEntity.ok(ApiResponse.success("题库导入完成，共 " + count + " 条", count));
     }
 
-    /** 检查用户是否有知识库文件 */
+    @Operation(summary = "检查知识库文件", description = "检查当前用户是否有知识库文件")
     @GetMapping("/has-files")
     public ResponseEntity<ApiResponse<Boolean>> hasFiles(
             @AuthenticationPrincipal Long userId) {

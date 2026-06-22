@@ -83,10 +83,10 @@ public class QueryRewriteAgent {
                     .user(ctx + "\n原始查询：" + query)
                     .call()
                     .content();
-            log.info("Query rewritten: '{}' → '{}'", query, rewritten);
+            log.info("查询改写完成: '{}' → '{}'", query, rewritten);
             return rewritten != null && !rewritten.isBlank() ? rewritten : query;
         } catch (Exception e) {
-            log.warn("Query rewrite failed, using original: {}", query, e);
+            log.warn("查询改写失败，使用原始查询: {}", query, e);
             return query;
         }
     }

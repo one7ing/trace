@@ -139,7 +139,7 @@ public class SearchRouterServiceImpl implements SearchRouterService {
      * 将知识类搜索存入WEB知识库（待后续自动入库）。
      */
     private void saveToWebLibrary(Long userId, String query) {
-        log.info("Knowledge query eligible for WEB library: userId={}, query={}", userId, query);
+        log.info("知识查询符合WEB知识库入库条件: userId={}, query={}", userId, query);
          //TODO: 后续实现自动入库（需接入网络搜索结果回调）
     }
 }

@@ -189,8 +189,6 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
      *
      * @param userId   当前用户ID，用于权限过滤（该参数在此方法中未直接使用，由 Mapper SQL 通过 metadata 过滤）
      * @param query    用户输入的原始查询文本
-     * @param category 知识库类型，如 USER / INTERVIEW / WEB，用于 metadata 过滤
-     * @param usage    知识用途，如 KNOWLEDGE / INTERVIEW，用于 metadata 过滤
      * @param topK     返回最相关文档的数量
      * @return 混合检索后排序的文档列表，如果无法检索则返回空列表
      */
@@ -265,7 +263,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 docs.add(doc);
             } catch (Exception e) {
                 // 单行解析失败不影响其他行，记录日志并跳过
-                log.warn("Failed to convert hybridSearch row to Document: {}", row, e);
+                log.warn("混合检索行转换为Document失败: KnowledgeBaseServiceImpl.hybridSearchToDocuments, row={}", row, e);
             }
         }
         return docs;
@@ -373,7 +371,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
             if (ext.endsWith(".txt") || ext.endsWith(".md")) return new String(file.getBytes(), StandardCharsets.UTF_8);
             if (ext.endsWith(".pdf")) return readPdf(file.getBytes());
             throw new IllegalArgumentException("不支持格式: " + ext + "，支持 PDF/TXT/MD");
-        } catch (RuntimeException e) { throw e; } catch (Exception e) { throw new RuntimeException(e.getMessage()); }
+        } catch (RuntimeException e) { throw e; } catch (Exception e) { throw new RuntimeException("KnowledgeBaseServiceImpl.readFile读取文件失败: " + e.getMessage(), e); }
     }
 
     private String readPdf(byte[] data) throws Exception {
@@ -430,7 +428,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 String metaJson = objectMapper.writeValueAsString(doc.getMetadata());
                 kbMapper.insertVectorStore(doc.getId(), content, metaJson, vecStr);
             } catch (Exception e) {
-                log.error("Failed to insert vector for docId={}", doc.getId(), e);
+                log.error("知识库向量插入失败: docId={}, 错误位置=KnowledgeBaseServiceImpl.insertVectors", doc.getId(), e);
             }
         }
     }

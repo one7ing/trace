@@ -15,8 +15,11 @@ public interface constant {
     }
     interface ChatMemoryExtract{
         String LOCK_KEY = "distributed:lock:chat-memory-extract";
+        String LOCK_KEY_PREFIX = "chat:memory:extract:lock:";
         String LAST_EXTRACTED_KEY_PREFIX = "chat:last_extracted:";
         int EXTRACT_INTERVAL_MINUTES = 30;
+        int RECENT_MESSAGE_COUNT = 15;
+        int LOCK_TTL_SECONDS = 300;
     }
     interface Dashboard{
         int CHECKIN_WEIGHT = 4;
@@ -38,9 +41,9 @@ public interface constant {
         String PLAN_EXCHANGE = "trace.plan.exchange";
         String PLAN_ROUTING_KEY = "trace.plan.generate";
 
-        String INTERVIEW_EVAL_QUEUE = "trace.interview.eval";
-        String INTERVIEW_EVAL_EXCHANGE = "trace.interview.exchange";
-        String INTERVIEW_EVAL_ROUTING_KEY = "trace.interview.eval";
+        String PRACTICE_JUDGE_QUEUE = "trace.practice.judge";
+        String PRACTICE_JUDGE_EXCHANGE = "trace.practice.exchange";
+        String PRACTICE_JUDGE_ROUTING_KEY = "trace.practice.judge";
 
         String MEMORY_EXTRACT_QUEUE = "trace.memory.extract";
         String MEMORY_EXTRACT_EXCHANGE = "trace.memory.exchange";

@@ -42,5 +42,10 @@
         FROM long_term_memories WHERE user_id = #{userId} AND embedding IS NOT NULL
         ORDER BY 1 - (embedding &lt;=&gt; #{queryVec}::vector) DESC LIMIT #{limit}
     </select>
-
+    
+    <insert id="insertembding">
+        INSERT INTO long_term_memories (user_id, content, source_type, embedding)
+        VALUES (#{userId}, #{content}, #{sourceType},
+                #{embedding, jdbcType=VARCHAR}::vector)
+    </insert>
 </mapper>

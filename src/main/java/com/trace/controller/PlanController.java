@@ -6,6 +6,8 @@ import com.trace.dto.PlanGenerateRequest;
 import com.trace.entity.StudyPlan;
 import com.trace.service.PlanService;
 import com.trace.service.impl.PlanSseRegistry;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
@@ -16,6 +18,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.util.Map;
 
+@Tag(name = "学习计划", description = "AI 生成学习计划、手动创建、打卡进度、PDF 报告")
 @RestController @RequestMapping("/api/plan") @RequiredArgsConstructor
 public class PlanController {
     private final PlanService planService;
