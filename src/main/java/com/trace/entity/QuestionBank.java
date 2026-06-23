@@ -27,6 +27,14 @@ public class QuestionBank {
     /** 难度：easy / medium / hard */
     private String difficulty;
 
+    /** 所属题库ID（NULL=系统题库） */
+    @TableField("bank_id")
+    private Long bankId;
+
+    /** 创建者用户ID（NULL=系统题库） */
+    @TableField("user_id")
+    private Long userId;
+
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private java.time.LocalDateTime createdAt;
 }

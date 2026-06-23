@@ -19,6 +19,7 @@ spring:
       embedding:
         options:
           model: text-embedding-v3
+          dimensions: 1024
     # PgVectorStore 初始化
     vectorstore:
       pgvector:

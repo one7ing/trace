@@ -43,10 +43,17 @@ public class PracticeServiceImpl implements PracticeService {
     @SuppressWarnings("unchecked")
     public Map<String, Object> startPractice(Long userId, PracticeStartRequest request) {
         String sessionId = UUID.randomUUID().toString();
-        String topic = request.getTopic() != null ? request.getTopic() : "general";
 
-        // 获取该方向全部题目
-        List<QuestionBank> questions = questionBankService.getRandomQuestions(topic, 100);
+        // 获取题目：bankTopic 优先（用户自建题库），否则从系统题库按 topic 取
+        List<QuestionBank> questions;
+        String topic;
+        if (request.getBankTopic() != null && !request.getBankTopic().isBlank()) {
+            topic = request.getBankTopic();
+            questions = questionBankService.getRandomFromBank(userId, topic, 100);
+        } else {
+            topic = request.getTopic() != null ? request.getTopic() : "general";
+            questions = questionBankService.getRandomQuestions(topic, 100);
+        }
         if (questions.isEmpty()) {
             throw new IllegalArgumentException("题库中暂无该方向的题目，请先导入题库或选择其他方向");
         }
@@ -72,7 +79,6 @@ public class PracticeServiceImpl implements PracticeService {
         session.put("currentQuestion", 1);
         session.put("answers", new HashMap<>());
         session.put("status", "IN_PROGRESS");
-        session.put("useKnowledgeBase", request.isUseKnowledgeBase());
 
         redisTemplate.opsForValue().set(SESSION_KEY_PREFIX + sessionId,
                 session, SESSION_TTL_HOURS, TimeUnit.HOURS);
@@ -138,7 +144,6 @@ public class PracticeServiceImpl implements PracticeService {
         judgeMsg.put("recordId", recordId);
         judgeMsg.put("topic", s.get("topic"));
         judgeMsg.put("questions", allQa);
-        judgeMsg.put("useKnowledgeBase", s.getOrDefault("useKnowledgeBase", false));
         judgeMsg.put("userId", s.get("userId"));
 
         rabbitTemplate.convertAndSend(

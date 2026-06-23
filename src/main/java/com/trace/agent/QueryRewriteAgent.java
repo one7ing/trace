@@ -90,20 +90,6 @@ public class QueryRewriteAgent {
             return query;
         }
     }
-
-    /**
-     * 获取用户最近的对话历史（用于上下文改写）。
-     */
-    public List<String> getRecentHistory(Long userId) {
-        List<Map<String, String>> ctx = memoryService.getChatContext(userId);
-        if (ctx == null || ctx.isEmpty()) {
-            return List.of();
-        }
-        return ctx.stream()
-                .filter(m -> "user".equals(m.get("role")))
-                .map(m -> m.get("content"))
-                .toList();
-    }
     /**
      * 构建系统提示词
      */

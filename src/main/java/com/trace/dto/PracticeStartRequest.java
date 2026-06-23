@@ -1,7 +1,6 @@
 package com.trace.dto;
 
 import jakarta.validation.constraints.Min;
-import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 
 /**
@@ -11,13 +10,12 @@ import lombok.Data;
 public class PracticeStartRequest {
 
     /** 刷题方向（frontend/backend/general 等） */
-    @NotBlank(message = "方向不能为空")
     private String topic;
+
+    /** 用户自建题库名称（与 topic 二选一，bankTopic 优先） */
+    private String bankTopic;
 
     /** 题目数量，默认 5 */
     @Min(value = 1, message = "题目数量至少为1")
     private Integer questionCount;
-
-    /** 是否结合用户知识库（AI 判题时参考） */
-    private boolean useKnowledgeBase;
 }

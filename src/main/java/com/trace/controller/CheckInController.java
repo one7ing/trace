@@ -120,4 +120,6 @@ public class CheckInController {
         result.put("weekChecked", weekChecked);
         return ResponseEntity.ok(ApiResponse.success(result));
     }
+
+
 }

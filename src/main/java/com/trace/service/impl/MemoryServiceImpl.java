@@ -185,13 +185,15 @@ public class MemoryServiceImpl implements MemoryService {
 
     @Override
     public List<LongTermMemory> searchSimilarMemories(Long userId, String queryText, int limit) {
-        if (queryText == null || queryText.isBlank()) return getRecentMemories(userId, limit);
+        if (queryText == null || queryText.isBlank())
+            return getRecentMemories(userId, limit);
         if (embeddingModel != null) {
             try {
                 float[] emb = embeddingModel.embed(queryText);
                 String vecStr = vectorToString(emb);
                 List<LongTermMemory> results = memoryMapper.searchByVector(userId, vecStr, limit);
-                if (results != null && !results.isEmpty()) return results;
+                if (results != null && !results.isEmpty())
+                    return results;
             } catch (Exception e) { log.warn("语义搜索失败，回退到最近记忆: userId={}", userId, e); }
         }
         return getRecentMemories(userId, limit);

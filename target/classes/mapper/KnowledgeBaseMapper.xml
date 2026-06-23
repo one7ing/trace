@@ -3,112 +3,72 @@
         "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 <mapper namespace="com.trace.mapper.KnowledgeBaseMapper">
 
-    <!-- 混合检索：向量相似度(0.7) + 全文 ts_rank(0.3)
-         返回 LinkedHashMap，由 Service 层构造 Document -->
-    <select id="hybridSearch" resultType="java.util.LinkedHashMap">
-        SELECT id,
-               content,
-               metadata,
-               (1 - (embedding &lt;=&gt; #{queryVec}::vector)) * 0.7
-               + COALESCE(
-                     ts_rank(to_tsvector('simple', content),
-                             to_tsquery('simple', #{tsQuery})),
-                     0
-                 ) * 0.3 AS hybrid_score
-        FROM public.vector_store
-        WHERE (1 - (embedding &lt;=&gt; #{queryVec}::vector)) >= 0.6
-        <if test="category != null and category != ''">
-            AND metadata ->> 'knowledgeType' = #{category}
-        </if>
-        ORDER BY hybrid_score DESC
-        LIMIT #{topK}
-    </select>
-
-    <!-- 基础查询 -->
-    <select id="findByUserIdAndType" resultType="com.trace.entity.KnowledgeBase">
-        SELECT * FROM knowledge_bases
-        WHERE user_id = #{userId} AND knowledge_type = #{type}
-        ORDER BY created_at DESC
-    </select>
-
-    <select id="findShared" resultType="com.trace.entity.KnowledgeBase">
-        SELECT * FROM knowledge_bases
-        WHERE knowledge_type = 'INTERVIEW'
-        ORDER BY created_at DESC
-    </select>
+    <!-- ===== knowledge_bases 展示表 ===== -->
 
     <delete id="deleteAllByUserId">
-        DELETE FROM knowledge_bases
-        WHERE user_id = #{userId} AND knowledge_type = 'USER'
+        DELETE FROM knowledge_bases WHERE user_id = #{userId}
     </delete>
 
     <select id="findByFileName" resultType="com.trace.entity.KnowledgeBase">
         SELECT * FROM knowledge_bases
         WHERE user_id = #{userId} AND file_name = #{fileName}
-        ORDER BY chunk_index ASC
+        LIMIT 1
     </select>
 
-    <!-- PgVector 向量插入 -->
-    <insert id="insertVector">
-        INSERT INTO knowledge_bases (id,
-                                     user_id,
-                                     file_name,
-                                     file_type,
-                                     content,
-                                     embedding,
-                                     knowledge_type,
-                                     chunk_index,
-                                     metadata,
-                                     created_at)
-        VALUES (#{id},
-                #{userId},
-                #{fileName},
-                #{fileType},
-                #{content},
-                #{vecStr}::vector,
-                #{knowledgeType},
-                #{chunkIdx},
-                '{}'::jsonb,
-                CURRENT_TIMESTAMP)
-    </insert>
+    <!-- ===== vector_store 检索 ===== -->
 
-    <!-- 向量相似度搜索（全类型） -->
-    <select id="similaritySearchAll" resultType="com.trace.entity.KnowledgeBase">
-        SELECT *
-        FROM knowledge_bases
-        WHERE knowledge_type = #{knowledgeType}
-        ORDER BY embedding &lt;=&gt; #{vecStr}::vector
-        LIMIT #{limit}
+    <!-- 混合检索：向量(0.7) + 全文(0.3)，过滤 userId 和 category -->
+    <select id="hybridSearch" resultType="java.util.LinkedHashMap">
+        SELECT id, content, metadata,
+               (1 - (embedding &lt;=&gt; #{queryVec}::vector)) * 0.7
+               + COALESCE(ts_rank(to_tsvector('simple', content),
+                                  to_tsquery('simple', #{tsQuery})), 0) * 0.3 AS hybrid_score
+        FROM public.vector_store
+        WHERE (1 - (embedding &lt;=&gt; #{queryVec}::vector)) >= 0.6
+          AND metadata ->> 'userId' = #{userId}::text
+          AND metadata ->> 'category' = #{category}
+        ORDER BY hybrid_score DESC
+        LIMIT #{topK}
     </select>
 
-    <!-- 向量相似度搜索（仅用户） -->
-    <select id="similaritySearchUser" resultType="com.trace.entity.KnowledgeBase">
-        SELECT *
-        FROM knowledge_bases
-        WHERE user_id = #{userId}
-          AND knowledge_type = 'USER'
-        ORDER BY embedding &lt;=&gt; #{vecStr}::vector
-        LIMIT #{limit}
+    <!-- 语义检索：纯向量相似度，threshold 阈值过滤 -->
+    <select id="semanticSearch" resultType="java.util.LinkedHashMap">
+        SELECT id, content, metadata,
+               (1 - (embedding &lt;=&gt; #{queryVec}::vector)) AS similarity
+        FROM public.vector_store
+        WHERE (1 - (embedding &lt;=&gt; #{queryVec}::vector)) >= #{threshold}
+          AND metadata ->> 'userId' = #{userId}::text
+          AND metadata ->> 'category' = #{category}
+        ORDER BY similarity DESC
+        LIMIT #{topK}
     </select>
 
-    <!-- ========== vector_store 直接写入（替代 Spring AI VectorStore） ========== -->
+    <!-- ===== vector_store 写入/删除 ===== -->
 
-    <!-- 写入向量数据到 public.vector_store -->
     <insert id="insertVectorStore">
         INSERT INTO public.vector_store (id, content, metadata, embedding)
-        VALUES (#{id}::uuid,
-                #{content},
-                #{metadata}::jsonb,
-                #{vecStr}::vector)
+        VALUES (#{id}::uuid, #{content}, #{metadata}::json, #{vecStr}::vector)
     </insert>
 
-    <!-- 按 ID 删除 vector_store 记录 -->
     <delete id="deleteFromVectorStore">
-        DELETE FROM public.vector_store
-        WHERE id::text IN
+        DELETE FROM public.vector_store WHERE id::text IN
         <foreach collection="ids" item="id" open="(" separator="," close=")">
             #{id}
         </foreach>
     </delete>
+
+    <delete id="deleteFromVectorStoreByFileName">
+        DELETE FROM public.vector_store
+        WHERE metadata ->> 'userId' = #{userId}::text
+          AND metadata ->> 'fileName' = #{fileName}
+    </delete>
+
+    <select id="findVectorChunksByFileName" resultType="java.util.Map">
+        SELECT content, metadata
+        FROM public.vector_store
+        WHERE metadata ->> 'userId' = #{userId}::text
+          AND metadata ->> 'fileName' = #{fileName}
+        ORDER BY (metadata ->> 'chunkIndex')::int ASC
+    </select>
 
 </mapper>

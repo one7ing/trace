@@ -43,12 +43,23 @@
       <span>仪表盘</span>
     </router-link>
 
+    <div class="nav-divider"></div>
+
     <router-link to="/knowledge" class="nav-item" :class="{ active: isActive('/knowledge') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
         <circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/>
       </svg>
       <span>Trace 问答</span>
     </router-link>
+
+    <router-link to="/knowledge-base" class="nav-item" :class="{ active: isActive('/knowledge-base') }">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+      </svg>
+      <span>知识库</span>
+    </router-link>
+
+    <div class="nav-divider"></div>
 
     <router-link to="/practice" class="nav-item" :class="{ active: isActive('/practice') && !isActive('/practice/history') }">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
@@ -62,13 +73,6 @@
         <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
       </svg>
       <span>刷题记录</span>
-    </router-link>
-
-    <router-link to="/knowledge-base" class="nav-item" :class="{ active: isActive('/knowledge-base') }">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="nav-icon">
-        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
-      </svg>
-      <span>知识库</span>
     </router-link>
 
     <div class="nav-divider"></div>

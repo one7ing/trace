@@ -6,11 +6,11 @@ import com.trace.service.QuestionBankService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.*;
 import java.util.regex.Matcher;
@@ -150,5 +150,257 @@ public class QuestionBankServiceImpl implements QuestionBankService {
     @Override
     public List<String> getAllTopics() {
         return questionBankMapper.findAllTopics();
+    }
+
+    // ===== 用户自建题库 =====
+
+    /** 创建用户题库并导入题目（文本内容） */
+    @Override
+    @Transactional
+    public Map<String, Object> createBank(Long userId, String name, String content) {
+        // 校验名称
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("题库名称不能为空");
+        }
+        List<QuestionBank> existing = questionBankMapper.findByUserIdAndTopic(userId, name);
+        if (!existing.isEmpty()) {
+            throw new IllegalArgumentException("题库名称已存在");
+        }
+        if (content == null || content.isBlank()) {
+            throw new IllegalArgumentException("题目内容不能为空");
+        }
+        // 解析文本中的 Q&A
+        List<Map.Entry<String, String>> qaList = parseQaFromText(content);
+        if (qaList.isEmpty()) {
+            throw new IllegalArgumentException("未能从内容中解析出题目，请使用 Q: ... A: ... 格式");
+        }
+        // 批量写入
+        int count = 0;
+        for (var qa : qaList) {
+            QuestionBank qb = QuestionBank.builder()
+                    .topic(name)
+                    .question(qa.getKey())
+                    .referenceAnswer(qa.getValue() != null ? qa.getValue() : "")
+                    .difficulty("medium")
+                    .userId(userId)
+                    .createdAt(java.time.LocalDateTime.now())
+                    .build();
+            questionBankMapper.insert(qb);
+            count++;
+        }
+        log.info("题库创建完成: userId={}, topic={}, count={}", userId, name, count);
+        Map<String, Object> result = new HashMap<>();
+        result.put("topic", name);
+        result.put("count", count);
+        return result;
+    }
+
+    /** 创建用户题库并导入题目（PDF文件） */
+    @Override
+    @Transactional
+    public Map<String, Object> createBankFromFile(Long userId, String name, MultipartFile file) {
+        // 校验名称
+        if (name == null || name.isBlank()) {
+            throw new IllegalArgumentException("题库名称不能为空");
+        }
+        List<QuestionBank> existing = questionBankMapper.findByUserIdAndTopic(userId, name);
+        if (!existing.isEmpty()) {
+            throw new IllegalArgumentException("题库名称已存在");
+        }
+        // 读取文件内容
+        String content;
+        try {
+            String originalName = file.getOriginalFilename();
+            if (originalName != null && originalName.toLowerCase().endsWith(".pdf")) {
+                content = readPdf(file.getBytes());
+            } else {
+                content = new String(file.getBytes(), StandardCharsets.UTF_8);
+            }
+        } catch (Exception e) {
+            throw new RuntimeException("读取文件失败: " + e.getMessage(), e);
+        }
+        if (content.isBlank()) {
+            throw new IllegalArgumentException("文件内容为空");
+        }
+        // 解析 Q&A
+        List<Map.Entry<String, String>> qaList = parseQaFromText(content);
+        if (qaList.isEmpty()) {
+            throw new IllegalArgumentException("未能从文件中解析出题目");
+        }
+        // 批量写入
+        int count = 0;
+        for (var qa : qaList) {
+            QuestionBank qb = QuestionBank.builder()
+                    .topic(name)
+                    .question(qa.getKey())
+                    .referenceAnswer(qa.getValue() != null ? qa.getValue() : "")
+                    .difficulty("medium")
+                    .userId(userId)
+                    .createdAt(java.time.LocalDateTime.now())
+                    .build();
+            questionBankMapper.insert(qb);
+            count++;
+        }
+        log.info("题库创建完成(file): userId={}, topic={}, count={}", userId, name, count);
+        Map<String, Object> result = new HashMap<>();
+        result.put("topic", name);
+        result.put("count", count);
+        return result;
+    }
+
+    /** 解析文本中的 Q&A，支持多种格式 */
+    private List<Map.Entry<String, String>> parseQaFromText(String text) {
+        List<Map.Entry<String, String>> qaList = new ArrayList<>();
+
+        // 清理代码块
+        text = text.replaceAll("```[\\s\\S]*?```", "");
+
+        // 格式A: "Q: 问题\nA: 答案" 或 "问：问题\n答：答案"
+        Pattern pQA = Pattern.compile(
+                "[Qq问][：:]\s*(.+?)\n[Aa答][：:]\s*([\\s\\S]*?)(?=\n[Qq问][：:]|\n*$)",
+                Pattern.DOTALL);
+        Matcher mQA = pQA.matcher(text);
+        while (mQA.find()) {
+            String q = mQA.group(1).trim();
+            String a = mQA.group(2).trim();
+            if (q.length() > 2 && a.length() > 2) {
+                qaList.add(new AbstractMap.SimpleEntry<>(q, a));
+            }
+        }
+        if (!qaList.isEmpty()) {
+            log.info("格式 Q:/A: 匹配: {}", qaList.size());
+            return dedupQa(qaList);
+        }
+
+        // 格式B: "数字. 问题\n答案内容"（如 1. Redis是什么？\nRedis是...）
+        Pattern pNum = Pattern.compile(
+                "(\\d+)\\.\\s*(.+?)\\n([\\s\\S]*?)(?=\\n\\d+\\.\\s|\\n*$)",
+                Pattern.DOTALL);
+        Matcher mNum = pNum.matcher(text);
+        while (mNum.find()) {
+            String q = mNum.group(2).trim();
+            String a = mNum.group(3).trim();
+            if (q.length() > 3 && a.length() > 5) {
+                qaList.add(new AbstractMap.SimpleEntry<>(q, a));
+            }
+        }
+        if (!qaList.isEmpty()) {
+            log.info("格式 数字. 匹配: {}", qaList.size());
+            return dedupQa(qaList);
+        }
+
+        // 格式C: 宽松备用——按行解析，以数字/问号结尾的行作为题目
+        String[] lines = text.split("\n");
+        String currentQ = null;
+        StringBuilder currentA = new StringBuilder();
+        for (String line : lines) {
+            line = line.trim();
+            if (line.isEmpty()) {
+                if (currentQ != null) currentA.append("\n");
+                continue;
+            }
+            if (line.matches("^\\d+[\\.\\、].*") || line.endsWith("？") || line.endsWith("?")) {
+                if (currentQ != null && currentA.toString().trim().length() > 5) {
+                    qaList.add(new AbstractMap.SimpleEntry<>(currentQ, currentA.toString().trim()));
+                }
+                currentQ = line.replaceFirst("^\\d+[\\.\\、]\\s*", "").trim();
+                currentA = new StringBuilder();
+            } else if (currentQ != null) {
+                currentA.append(line).append("\n");
+            }
+        }
+        if (currentQ != null && currentA.toString().trim().length() > 5) {
+            qaList.add(new AbstractMap.SimpleEntry<>(currentQ, currentA.toString().trim()));
+        }
+        log.info("格式 宽松 匹配: {}", qaList.size());
+        return dedupQa(qaList);
+    }
+
+    /** 去重 */
+    private List<Map.Entry<String, String>> dedupQa(List<Map.Entry<String, String>> qaList) {
+        Set<String> seen = new HashSet<>();
+        List<Map.Entry<String, String>> unique = new ArrayList<>();
+        for (var qa : qaList) {
+            String norm = qa.getKey().replaceAll("\\s+", "").toLowerCase();
+            if (seen.add(norm)) unique.add(qa);
+        }
+        return unique;
+    }
+
+    /** 读取 PDF 文本 */
+    private String readPdf(byte[] data) throws Exception {
+        com.lowagie.text.pdf.PdfReader reader = new com.lowagie.text.pdf.PdfReader(
+                new java.io.ByteArrayInputStream(data));
+        com.lowagie.text.pdf.parser.PdfTextExtractor extractor =
+                new com.lowagie.text.pdf.parser.PdfTextExtractor(reader);
+        StringBuilder sb = new StringBuilder();
+        for (int i = 1; i <= reader.getNumberOfPages(); i++) {
+            sb.append(extractor.getTextFromPage(i)).append("\n");
+        }
+        reader.close();
+        return sb.toString().trim();
+    }
+
+    /** 列出用户题库 */
+    @Override
+    public List<Map<String, Object>> listBanks(Long userId) {
+        List<Map<String, Object>> result = new ArrayList<>();
+        List<Map<String, Object>> rows = questionBankMapper.countByUserIdGroupByTopic(userId);
+        for (Map<String, Object> row : rows) {
+            Map<String, Object> bank = new HashMap<>();
+            bank.put("topic", row.get("topic"));
+            bank.put("count", row.get("cnt"));
+            result.add(bank);
+        }
+        return result;
+    }
+
+    /** 删除用户题库及其下所有题目 */
+    @Override
+    @Transactional
+    public void deleteBank(Long userId, String topic) {
+        questionBankMapper.deleteByUserIdAndTopic(userId, topic);
+    }
+
+    /** 向题库添加题目 */
+    @Override
+    @Transactional
+    public QuestionBank addQuestion(Long userId, String topic, String question, String referenceAnswer) {
+        QuestionBank qb = QuestionBank.builder()
+                .topic(topic)
+                .question(question)
+                .referenceAnswer(referenceAnswer != null ? referenceAnswer : "")
+                .difficulty("medium")
+                .userId(userId)
+                .createdAt(java.time.LocalDateTime.now())
+                .build();
+        questionBankMapper.insert(qb);
+        return qb;
+    }
+
+    /** 查看题库题目列表 */
+    @Override
+    public List<QuestionBank> listQuestions(Long userId, String topic) {
+        return questionBankMapper.findByUserIdAndTopic(userId, topic);
+    }
+
+    /** 删除单题 */
+    @Override
+    @Transactional
+    public void deleteQuestion(Long userId, Long questionId) {
+        QuestionBank qb = questionBankMapper.selectById(questionId);
+        if (qb == null) {
+            throw new IllegalArgumentException("题目不存在");
+        }
+        if (!userId.equals(qb.getUserId())) {
+            throw new IllegalArgumentException("无权删除");
+        }
+        questionBankMapper.deleteById(questionId);
+    }
+
+    /** 从用户题库随机取题 */
+    @Override
+    public List<QuestionBank> getRandomFromBank(Long userId, String topic, int count) {
+        return questionBankMapper.findRandomByUserIdAndTopic(userId, topic, count);
     }
 }

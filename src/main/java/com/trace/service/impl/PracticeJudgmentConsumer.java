@@ -68,24 +68,37 @@ public class PracticeJudgmentConsumer {
                     continue;
                 }
 
-                // AI 判题
+                // AI 判题：参考答案非空时仅参考，为空时独立判断
                 StringBuilder ctx = new StringBuilder();
                 ctx.append("## 题目\n").append(question).append("\n\n");
-                ctx.append("## 参考答案（重点）\n").append(refAnswer).append("\n\n");
+                boolean hasRef = refAnswer != null && !refAnswer.isBlank();
+                if (hasRef) {
+                    ctx.append("## 参考答案（仅供参考）\n").append(refAnswer).append("\n\n");
+                }
                 ctx.append("## 用户答案\n").append(userAnswer).append("\n\n");
-                ctx.append("请分析用户答案是否说到了参考答案中的关键点，"
-                        + "按以下 JSON 格式回复：\n");
+                ctx.append("请分析用户答案是否正确，按以下 JSON 格式回复：\n");
                 ctx.append("{\"correct\": true/false, \"score\": 8, "
-                        + "\"comment\": \"点评：哪些重点说到了，哪些遗漏了（50字以内）\"}");
+                        + "\"comment\": \"点评（50字以内）\"}");
+
+                String sysPrompt;
+                if (hasRef) {
+                    sysPrompt = "你是刷题判官。你的任务是对比用户答案与参考答案的关键知识点：\n"
+                            + "1. 参考答案仅为参考，用户言之有理即可算对\n"
+                            + "2. 不需要逐字匹配，意思到了即可\n"
+                            + "3. 完全跑题或遗漏所有重点算错\n"
+                            + "4. 评分标准：说全8-10分，说一半5-7分，基本没说1-4分\n"
+                            + "5. 点评要具体：指出说到了哪些点、遗漏了哪些点\n"
+                            + "仅输出 JSON，不要其他内容。";
+                } else {
+                    sysPrompt = "你是刷题判官。题目没有参考答案，请根据你的专业知识独立判断用户答案：\n"
+                            + "1. 答案是否在知识上正确、完整\n"
+                            + "2. 评分标准：准确全面8-10分，部分正确5-7分，基本错误1-4分\n"
+                            + "3. 点评要具体：指出对在哪里、错在哪里\n"
+                            + "仅输出 JSON，不要其他内容。";
+                }
 
                 String result = chatClientBuilder.build().prompt()
-                        .system("你是刷题判官。你的任务是对比用户答案与参考答案的关键知识点：\n"
-                                + "1. 用户说到了参考答案中的核心要点就算对\n"
-                                + "2. 不需要逐字匹配，意思到了即可\n"
-                                + "3. 完全跑题或遗漏所有重点算错\n"
-                                + "4. 评分标准：说全8-10分，说一半5-7分，基本没说1-4分\n"
-                                + "5. 点评要具体：指出说到了哪些点、遗漏了哪些点\n"
-                                + "仅输出 JSON，不要其他内容。")
+                        .system(sysPrompt)
                         .user(ctx.toString())
                         .call().content();
 

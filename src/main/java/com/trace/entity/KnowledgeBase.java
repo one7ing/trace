@@ -4,6 +4,10 @@ import com.baomidou.mybatisplus.annotation.*;
 import lombok.*;
 import java.time.LocalDateTime;
 
+/**
+ * 知识库展示表 —— 仅存储用户可见的条目信息。
+ * 实际内容与向量存储在 public.vector_store 中。
+ */
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 @TableName("knowledge_bases")
 public class KnowledgeBase {
@@ -14,21 +18,15 @@ public class KnowledgeBase {
     @TableField("user_id")
     private Long userId;
 
+    /** 文件名（即展示名称） */
     @TableField("file_name")
     private String fileName;
 
-    @TableField("file_type")
-    private String fileType;        // pdf / txt / docx
+    /** 分类：专业知识问答 / 闲聊问答 */
+    private String category;
 
-    private String content;         // 原始文本片段
-
-    @TableField("knowledge_type")
-    private String knowledgeType;   // USER / INTERVIEW
-
-    @TableField("chunk_index")
-    private Integer chunkIndex;     // 片段序号
-
-    private String metadata;        // JSON 元数据（来源、标签等）
+    /** 原始全文（非切块，用于查看/编辑） */
+    private String content;
 
     @TableField(value = "created_at", fill = FieldFill.INSERT)
     private LocalDateTime createdAt;

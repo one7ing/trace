@@ -21,4 +21,7 @@ public interface LongTermMemoryMapper extends BaseMapper<LongTermMemory> {
     List<Long> findLeastRelevantIds(@Param("userId") Long userId, @Param("count") int count);
     List<LongTermMemory> searchByVector(@Param("userId") Long userId, @Param("queryVec") String queryVec, @Param("limit") int limit);
     void insertembding(@Param("userId") Long userId,@Param("content") String content,@Param("sourceType") String sourceType,@Param("embedding") String embedding);
+
+    @org.apache.ibatis.annotations.Delete("DELETE FROM long_term_memories WHERE user_id = #{userId}")
+    int deleteAllByUserId(@Param("userId") Long userId);
 }

@@ -39,13 +39,9 @@ public class SearchRouterServiceImpl implements SearchRouterService {
             case HYBRID:
                 return kbService.hybridSearch(userId, query, knowledgeType, topK);
             case SEMANTIC: {
-                List<KnowledgeBase> kbs =
-                        kbService.search(userId, query, knowledgeType, topK);
-                return kbs.stream()
-                        .map(kb -> new Document(kb.getContent(),
-                                Map.of("fileName", kb.getFileName(),
-                                        "knowledgeType", kb.getKnowledgeType())))
-                        .collect(Collectors.toList());
+                // 已废弃：语义检索请使用 KnowledgeBaseService.semanticSearch()
+                return kbService.semanticSearch(userId, query, knowledgeType)
+                        .stream().collect(Collectors.toList());
             }
             case KEYWORD:
                 return keywordSearch(userId, query, knowledgeType, topK);

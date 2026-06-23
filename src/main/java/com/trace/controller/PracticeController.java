@@ -6,6 +6,7 @@ import com.trace.entity.PracticeQuestionDetail;
 import com.trace.entity.PracticeRecord;
 import com.trace.mapper.PracticeQuestionDetailMapper;
 import com.trace.service.PracticeService;
+import com.trace.service.QuestionBankService;
 import com.trace.service.impl.PracticeSseRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.*;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
 
@@ -25,6 +27,7 @@ import java.util.Map;
 public class PracticeController {
 
     private final PracticeService practiceService;
+    private final QuestionBankService questionBankService;
     private final PracticeSseRegistry sseRegistry;
     private final PracticeQuestionDetailMapper detailMapper;
 
@@ -117,5 +120,72 @@ public class PracticeController {
     public Flux<String> answerStream(
             @Valid @RequestBody PracticeAnswerRequest req) {
         return practiceService.submitPracticeStream(req.getSessionId(), req);
+    }
+
+    // ===== 用户自建题库管理 =====
+
+    @Operation(summary = "创建题库（文本内容）", description = "传入 name + content（Q&A 格式文本），解析后批量创建题目")
+    @PostMapping("/banks")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createBank(
+            @AuthenticationPrincipal Long userId,
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success(
+                questionBankService.createBank(userId, body.get("name"), body.get("content"))));
+    }
+
+    @Operation(summary = "创建题库（上传文件）", description = "上传 PDF/TXT 文件，自动解析 Q&A 并创建题库")
+    @PostMapping(value = "/banks/upload", consumes = org.springframework.http.MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<ApiResponse<Map<String, Object>>> createBankFromFile(
+            @AuthenticationPrincipal Long userId,
+            @RequestParam("file") MultipartFile file,
+            @RequestParam("name") String name) {
+        return ResponseEntity.ok(ApiResponse.success(
+                questionBankService.createBankFromFile(userId, name, file)));
+    }
+
+    @Operation(summary = "列出用户题库")
+    @GetMapping("/banks")
+    public ResponseEntity<ApiResponse<List<Map<String, Object>>>> listBanks(
+            @AuthenticationPrincipal Long userId) {
+        return ResponseEntity.ok(ApiResponse.success(questionBankService.listBanks(userId)));
+    }
+
+    @Operation(summary = "删除题库")
+    @DeleteMapping("/banks/{topic}")
+    public ResponseEntity<ApiResponse<Void>> deleteBank(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable String topic) {
+        questionBankService.deleteBank(userId, topic);
+        return ResponseEntity.ok(ApiResponse.success("题库已删除", null));
+    }
+
+    @Operation(summary = "添加题目到题库")
+    @PostMapping("/banks/{topic}/questions")
+    public ResponseEntity<ApiResponse<Object>> addQuestion(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable String topic,
+            @RequestBody Map<String, String> body) {
+        return ResponseEntity.ok(ApiResponse.success(
+                questionBankService.addQuestion(userId, topic,
+                        body.get("question"), body.get("referenceAnswer"))));
+    }
+
+    @Operation(summary = "查看题库题目")
+    @GetMapping("/banks/{topic}/questions")
+    public ResponseEntity<ApiResponse<List<Object>>> listQuestions(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable String topic) {
+        return ResponseEntity.ok(ApiResponse.success(
+                new java.util.ArrayList<>(questionBankService.listQuestions(userId, topic))));
+    }
+
+    @Operation(summary = "删除题库单题")
+    @DeleteMapping("/banks/{topic}/questions/{qid}")
+    public ResponseEntity<ApiResponse<Void>> deleteQuestion(
+            @AuthenticationPrincipal Long userId,
+            @PathVariable String topic,
+            @PathVariable Long qid) {
+        questionBankService.deleteQuestion(userId, qid);
+        return ResponseEntity.ok(ApiResponse.success("题目已删除", null));
     }
 }

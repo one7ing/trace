@@ -3,7 +3,7 @@
 <mapper namespace="com.trace.mapper.LongTermMemoryMapper">
 
     <select id="findRecentByUserId" resultType="com.trace.entity.LongTermMemory">
-        SELECT id, user_id, content, source_type, source_id, embedding, created_at
+        SELECT id, user_id, content, source_type, embedding, created_at
         FROM long_term_memories WHERE user_id = #{userId} ORDER BY created_at DESC LIMIT #{limit}
     </select>
 
@@ -38,7 +38,7 @@
     </select>
 
     <select id="searchByVector" resultType="com.trace.entity.LongTermMemory">
-        SELECT id, user_id, content, source_type, source_id, embedding, created_at
+        SELECT id, user_id, content, source_type, embedding, created_at
         FROM long_term_memories WHERE user_id = #{userId} AND embedding IS NOT NULL
         ORDER BY 1 - (embedding &lt;=&gt; #{queryVec}::vector) DESC LIMIT #{limit}
     </select>

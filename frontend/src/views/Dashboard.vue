@@ -90,9 +90,10 @@ const totalActivities = computed(() => 0) // kept for compatibility
 const checkinOption = computed(() => {
   const dist = dash.value.checkinDistribution || {}
   const days = ['周一','周二','周三','周四','周五','周六','周日']
-  const data = days.map(d => ({
+  const dayColors = ['#7B61FF','#43B88C','#f59e0b','#e85d75','#38bdf8','#a78bfa','#fb923c']
+  const data = days.map((d, i) => ({
     name: d, value: dist[d] ? 1 : 0,
-    itemStyle: { color: dist[d] ? '#7B61FF' : '#d5d5e0' },
+    itemStyle: { color: dist[d] ? dayColors[i] : '#e8e8ee' },
   }))
   return {
     tooltip: { trigger:'item', formatter: (p:any)=>`${p.name}: ${p.value?'已打卡':'未打卡'}` },
