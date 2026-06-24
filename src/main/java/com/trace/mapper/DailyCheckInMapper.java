@@ -21,4 +21,9 @@ public interface DailyCheckInMapper extends BaseMapper<DailyCheckIn> {
     List<DailyCheckIn> findByUserIdAndDateBetween(@Param("userId") Long userId,
                                                    @Param("start") LocalDate start,
                                                    @Param("end") LocalDate end);
+
+    /** 查询用户最近 N 天内的打卡记录（按日期降序），用于计算连续打卡天数 */
+    @Select("SELECT DISTINCT check_date FROM daily_check_ins WHERE user_id = #{userId} AND check_date >= #{since} ORDER BY check_date DESC")
+    List<LocalDate> findDistinctDatesSince(@Param("userId") Long userId,
+                                            @Param("since") LocalDate since);
 }

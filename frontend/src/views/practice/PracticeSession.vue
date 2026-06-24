@@ -119,7 +119,7 @@ async function submitAll() {
 </script>
 
 <style lang="scss" scoped>
-.practice-session { max-width:760px; margin:0 auto; display:flex; flex-direction:column; height:calc(100vh - 54px - 64px); }
+.practice-session { max-width:760px; margin:0 auto; display:flex; flex-direction:column; height:100%; }
 .session-hero { display:flex; align-items:center; gap:14px; margin-bottom:16px;
   .hero-avatar { width:46px;height:46px;border-radius:12px;background:linear-gradient(135deg,#43B88C,#5CC9A0);display:flex;align-items:center;justify-content:center;flex-shrink:0; }
   .hero-info h2 { font-size:17px;font-weight:700;color:var(--color-text);margin:0 0 4px; }

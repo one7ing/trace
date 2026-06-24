@@ -47,23 +47,13 @@ public class KnowledgeAgent extends AbstractAgent {
     @Override
     public String name() { return "knowledge"; }
 
-    @Override
-    public boolean canHandle(String userInput, Long userId) {
-        return !matchKeywords(userInput, "刷题", "练习", "题目", "做题", "面试", "出题", "日记", "周报", "计划");
-    }
-
-    @Override
-    public Flux<String> handleStream(String userInput, Long userId) {
-        // 默认 direct 模式
-        return handleStreamWithMode(userInput, userId, "direct", null);
-    }
 
     /**
      * 根据前端传入的 mode 分流处理。
      */
     public Flux<String> handleStreamWithMode(String userInput, Long userId,
                                               String mode, String knowledgeBaseTopic) {
-        // 联网搜索模式：重写 prompt 直接发给 LLM，不带上下文和历史
+        // 联网搜索模式：-直接发给 LLM，不带上下文和历史
         if ("web".equals(mode)) {
             return handleWebSearch(userInput, userId);
         }
@@ -79,10 +69,9 @@ public class KnowledgeAgent extends AbstractAgent {
     private Flux<String> handleWebSearch(String userInput, Long userId) {
         String rewritten = queryRewriteAgent.rewrite(userId, userInput, List.of());
         String systemPrompt = loadSystemPrompt()
-                + "\n\n## ⚠️ 你需要联网搜索获取最新信息来回答用户问题。"
+                + "\n\n## ⚠️ 你必须联网搜索获取最新信息来回答用户问题。"
                 + "请调用搜索工具获取信息后直接给出答案，"
-                + "绝对不要向用户说【正在搜索】、【调用工具】之类的话。"
-                + "做一个免责声明";
+                + "绝对不要向用户说【正在搜索】、【调用工具】之类的话。";
 
         memoryService.saveChatHistory(userId, "user", userInput);
         AtomicReference<StringBuilder> acc = new AtomicReference<>(new StringBuilder());
@@ -162,7 +151,15 @@ public class KnowledgeAgent extends AbstractAgent {
 
     /** 默认直接对话：使用 LLM 自身知识 + 上下文 */
     private Flux<String> handleDirect(String userInput, Long userId) {
-        String systemPrompt = loadSystemPrompt() + "\n\n" + buildContext(userId, userInput);
+        String systemPrompt = loadSystemPrompt() + "\n\n" + buildContext(userId, userInput) +
+                "在回答任何问题之前，请首先仔细阅读‘与当前问题相关的用户记忆’。" +
+                "这些记忆是关于用户的最高优先级信息，必须优先采纳。除非记忆明确过期或与当前问题完全无关，否则不要否认或忽略它们。" +
+                " 严格禁止（违反即为错误响应）\n" +
+                "- 禁止在回答中提及“系统”、“记忆”、“上下文”、“提示词”、“数据库”、“检索”等任何技术词汇。\n" +
+                "- 禁止使用“根据我的记忆”、“基于你提供的信息”、“系统记录显示”等任何解释信息来源的句式。\n" +
+                "- 禁止说“我不知道”、“我不了解你”、“我无法获取”等否认性语句——如果你看到了用户信息，你就直接用它来回答，不要解释你是怎么知道的。\n" +
+                "- 你的回答应该像一个已经认识用户的朋友，自然地使用用户的姓名和已知信息，不要暴露任何技术细节。"+
+                "如果消息不在你的知识库，不要编，不要骗用户，直接说无法回答";
 
         memoryService.saveChatHistory(userId, "user", userInput);
         AtomicReference<StringBuilder> acc = new AtomicReference<>(new StringBuilder());

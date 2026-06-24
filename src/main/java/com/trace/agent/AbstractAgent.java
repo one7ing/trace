@@ -30,14 +30,6 @@ public abstract class AbstractAgent implements Agent {
 
     protected abstract String loadSystemPrompt();
 
-    protected boolean matchKeywords(String input, String... keywords) {
-        if (input == null) return false;
-        String lower = input.toLowerCase();
-        for (String kw : keywords) {
-            if (lower.contains(kw.toLowerCase())) return true;
-        }
-        return false;
-    }
 
     protected String buildContext(Long userId, String userInput) {
         List<LongTermMemory> memories = memoryService.searchSimilarMemories(userId, userInput, 3);
@@ -70,30 +62,6 @@ public abstract class AbstractAgent implements Agent {
 
     static String cancelKey(Long userId) {
         return constant.CANCEL_KEY_PREFIX + userId;
-    }
-
-    @Override
-    public reactor.core.publisher.Flux<String> handleStream(String userInput, Long userId) {
-        ChatClient chatClient = chatClientBuilder.build();
-        return chatClient.prompt()
-                .system(loadSystemPrompt())
-                .user(userInput)
-                .stream()
-                .content()
-                .doFirst(() -> stringRedisTemplate.opsForValue().set(cancelKey(userId), "true"))
-                .takeUntil(token -> stringRedisTemplate.opsForValue().get(cancelKey(userId)) != null)
-                .doOnCancel(() -> {
-                    stringRedisTemplate.delete(cancelKey(userId));
-                    log.info("Agent流式响应已取消: userId={}, agent={}", userId, name());
-                })
-                .doOnComplete(() -> {
-                    stringRedisTemplate.delete(cancelKey(userId));
-                    log.debug("Agent流式响应已完成: userId={}, agent={}", userId, name());
-                })
-                .doOnError(e -> {
-                    stringRedisTemplate.delete(cancelKey(userId));
-                    log.error("Agent流式响应出错: userId={}, agent={}", userId, name(), e);
-                });
     }
 
     @Override

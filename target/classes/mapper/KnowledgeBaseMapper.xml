@@ -57,18 +57,14 @@
         </foreach>
     </delete>
 
-    <delete id="deleteFromVectorStoreByFileName">
+    <delete id="deleteFromVectorStoreByKbId">
         DELETE FROM public.vector_store
-        WHERE metadata ->> 'userId' = #{userId}::text
-          AND metadata ->> 'fileName' = #{fileName}
+        WHERE metadata ->> 'kbId' = #{kbId}::text
     </delete>
 
-    <select id="findVectorChunksByFileName" resultType="java.util.Map">
-        SELECT content, metadata
-        FROM public.vector_store
+    <delete id="deleteFromVectorStoreByUserId">
+        DELETE FROM public.vector_store
         WHERE metadata ->> 'userId' = #{userId}::text
-          AND metadata ->> 'fileName' = #{fileName}
-        ORDER BY (metadata ->> 'chunkIndex')::int ASC
-    </select>
+    </delete>
 
 </mapper>

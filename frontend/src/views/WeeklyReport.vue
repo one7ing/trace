@@ -164,11 +164,11 @@ onMounted(fetchReports)
     justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
-    h2 { font-size: 22px; margin: 0; }
+    h2 { font-size: 22px; margin: 0; color: var(--color-text); }
   }
 
   .desc {
-    color: #999;
+    color: var(--color-text-muted);
     font-size: 13px;
     margin-bottom: 16px;
   }
@@ -178,24 +178,32 @@ onMounted(fetchReports)
     align-items: center;
     gap: 8px;
     margin-bottom: 16px;
-    .filter-label { font-size: 13px; color: #666; }
+    .filter-label { font-size: 13px; color: var(--color-text-secondary); }
   }
 
   .report-card {
-    margin-bottom: 12px;
+    margin-bottom: 14px; border-radius: var(--radius-lg);
+    transition: all var(--transition);
+    &:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+    // 渐变封面条
+    &::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+      border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+      background: var(--color-primary-gradient);
+    }
 
     .report-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      .report-week { font-weight: 600; color: #409EFF; }
-      .report-date { font-size: 12px; color: #999; }
+      .report-week { font-weight: 600; color: var(--color-primary); font-size: 14px; }
+      .report-date { font-size: 12px; color: var(--color-text-muted); }
     }
 
     .report-summary {
-      color: #666;
+      color: var(--color-text-secondary);
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     .report-actions {
@@ -219,15 +227,15 @@ onMounted(fetchReports)
     :deep(.markdown-body) {
       font-size: 14px;
       line-height: 1.8;
-      color: #333;
-      h1 { font-size: 20px; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid #e8e8e8; }
-      h2 { font-size: 17px; margin: 18px 0 10px; padding-bottom: 4px; border-bottom: 1px solid #eee; }
-      h3 { font-size: 15px; margin: 14px 0 8px; color: #555; }
+      color: var(--color-text);
+      h1 { font-size: 20px; margin: 20px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--color-border); }
+      h2 { font-size: 17px; margin: 18px 0 10px; padding-bottom: 4px; border-bottom: 1px solid var(--color-border-light); }
+      h3 { font-size: 15px; margin: 14px 0 8px; color: var(--color-text-secondary); }
       ul, ol { padding-left: 22px; margin: 8px 0; }
       li { margin: 4px 0; }
       p { margin: 8px 0; }
-      code { background: #f3f3f8; padding: 2px 6px; border-radius: 3px; font-size: 12.5px; }
-      blockquote { border-left: 3px solid #7B61FF; padding: 6px 14px; margin: 12px 0; background: rgba(123,97,255,.04); color: #666; border-radius: 0 6px 6px 0; }
+      code { background: var(--color-primary-bg); padding: 2px 6px; border-radius: 3px; font-size: 12.5px; }
+      blockquote { border-left: 3px solid var(--color-primary); padding: 6px 14px; margin: 12px 0; background: var(--color-primary-bg); color: var(--color-text-secondary); border-radius: 0 6px 6px 0; }
     }
   }
 }

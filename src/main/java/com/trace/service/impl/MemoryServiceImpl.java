@@ -31,7 +31,7 @@ public class MemoryServiceImpl implements MemoryService {
     private final ObjectMapper objectMapper;
     private final EmbeddingModel embeddingModel;
 
-    private static final double SIMILARITY_THRESHOLD = 0.85;
+    private static final double SIMILARITY_THRESHOLD = 0.75;
 
     public MemoryServiceImpl(StringRedisTemplate stringRedisTemplate,
                               ChatHistoryMapper chatHistoryMapper,

@@ -9,7 +9,7 @@ public interface constant {
         //会话记忆500条
         int MAX_CHAT_HISTORY = 500;
         //短期记忆20条
-        int MAX_SHORT_TERM = 20;
+        int MAX_SHORT_TERM = 15;
         //长期记忆最长30条
         int MAX_MEMORIES = 30;
     }

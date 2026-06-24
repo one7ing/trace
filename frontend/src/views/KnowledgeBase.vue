@@ -29,52 +29,41 @@
       </div></div>
     </div>
 
-    <!-- 表格视图 -->
+    <!-- 卡片网格视图 -->
     <div class="section">
       <h3 class="section-title">我的知识库 · {{ total }} 个文档</h3>
 
-      <div class="table-wrapper" v-if="tableData.length">
-        <el-table :data="tableData" stripe style="width:100%" :header-cell-style="{background:'var(--color-bubble-ai)',color:'var(--color-text)',fontWeight:'600',fontSize:'13px'}">
-          <!-- 名称列：可编辑（即改文件名） -->
-          <el-table-column label="名称" min-width="200">
-            <template #default="{ row }">
-              <div class="name-cell">
-                <template v-if="editingRowId === row.id">
-                  <el-input v-model="editName" size="small" @keydown.enter="saveName(row)" @blur="saveName(row)" ref="nameInputRef" style="width:160px"/>
-                </template>
-                <template v-else>
-                  <span class="name-text">{{ row.fileName }}</span>
-                  <button class="btn-edit-icon" @click="startEditName(row)" title="编辑名称">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-                  </button>
-                </template>
-              </div>
+      <div class="kb-card-grid" v-if="tableData.length">
+        <div v-for="row in tableData" :key="row.id" class="kb-card">
+          <div class="kb-card-icon">
+            <span class="kb-icon">📄</span>
+            <span class="kb-category-tag" :class="{ chat: row.category === '闲聊问答' }">{{ row.category || '专业知识问答' }}</span>
+          </div>
+          <div class="kb-card-body">
+            <template v-if="editingRowId === row.id">
+              <el-input v-model="editName" size="small" @keydown.enter="saveName(row)" @blur="saveName(row)" ref="nameInputRef" style="width:100%"/>
             </template>
-          </el-table-column>
-
-          <!-- 分类列：只读标签（上传时选定不可修改） -->
-          <el-table-column label="分类" width="130" align="center">
-            <template #default="{ row }">
-              <span class="category-tag" :class="{ chat: row.category === '闲聊问答' }">{{ row.category || '专业知识问答' }}</span>
+            <template v-else>
+              <span class="kb-card-name" @dblclick="startEditName(row)">{{ row.fileName }}</span>
             </template>
-          </el-table-column>
-
-          <!-- 操作列 -->
-          <el-table-column label="操作" width="140" align="center">
-            <template #default="{ row }">
-              <button class="btn-view" @click="viewFile(row.fileName)">查看</button>
-              <button class="btn-del" @click="deleteFile(row.fileName)">删除</button>
-            </template>
-          </el-table-column>
-        </el-table>
-
-        <!-- 分页 -->
-        <div class="pager" v-if="totalPages > 1">
-          <button v-for="p in totalPages" :key="p" class="page-btn" :class="{ active: currentPage === p - 1 }" @click="currentPage = p - 1; fetchItems()">{{ p }}</button>
+            <span class="kb-card-date">{{ row.createdAt?.substring(0,10) }}</span>
+          </div>
+          <div class="kb-card-actions">
+            <button class="btn-edit-icon" @click="startEditName(row)" title="编辑名称">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="13" height="13"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            </button>
+            <button class="btn-view" @click="viewFile(row.fileName)">查看</button>
+            <button class="btn-del" @click="deleteFile(row.fileName)">删除</button>
+          </div>
         </div>
       </div>
 
-      <div class="empty" v-else><p>暂无知识库</p><p class="empty-hint">上传 PDF/TXT 文件构建专属知识库</p></div>
+      <!-- 分页 -->
+      <div class="pager" v-if="tableData.length && totalPages > 1">
+        <button v-for="p in totalPages" :key="p" class="page-btn" :class="{ active: currentPage === p - 1 }" @click="currentPage = p - 1; fetchItems()">{{ p }}</button>
+      </div>
+
+      <div class="empty" v-if="!tableData.length"><p>暂无知识库</p><p class="empty-hint">上传 PDF/TXT 文件构建专属知识库</p></div>
     </div>
 
     <!-- 文档查看/编辑弹窗 -->
@@ -238,40 +227,46 @@ onMounted(() => { fetchItems() })
 .section { margin-bottom: 22px; }
 .section-title { font-size: 13px; font-weight: 600; color: var(--color-text); margin: 0 0 10px; }
 
-// ── 表格 ──
-.table-wrapper {
-  background: var(--color-card); border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden;
-  :deep(.el-table) {
-    --el-table-border-color: var(--color-border-light);
-    --el-table-tr-bg-color: var(--color-card);
-    --el-table-row-hover-bg-color: var(--color-hover);
-    background: transparent;
+// ── 卡片网格 ──
+.kb-card-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px;
+}
+.kb-card {
+  background: var(--color-card); border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg); padding: 16px;
+  display: flex; align-items: center; gap: 14px;
+  box-shadow: var(--shadow-xs); transition: all var(--transition);
+  &:hover { box-shadow: var(--shadow-sm); transform: translateY(-1px); }
+  .kb-card-icon {
+    display: flex; flex-direction: column; align-items: center; gap: 6px; flex-shrink: 0;
+    .kb-icon { font-size: 28px; }
+    .kb-category-tag {
+      font-size: 10px; padding: 1px 8px; border-radius: 8px;
+      background: var(--color-active); color: #7B61FF;
+      &.chat { background: #fef7e0; color: #d09030; }
+    }
   }
-  :deep(.el-table th.el-table__cell) { border-bottom: 2px solid var(--color-border); }
-  :deep(.el-table td.el-table__cell) { border-bottom: 1px solid var(--color-border-light); }
-  :deep(.el-table--striped .el-table__body tr.el-table__row--striped td.el-table__cell) {
-    background: var(--color-bubble-ai);
+  .kb-card-body { flex: 1; min-width: 0;
+    .kb-card-name { font-size: 13px; font-weight: 600; color: var(--color-text); display: block; cursor: pointer;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      &:hover { color: var(--color-primary); }
+    }
+    .kb-card-date { font-size: 11px; color: var(--color-text-muted); display: block; margin-top: 4px; }
   }
+  .kb-card-actions { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 }
 
 .name-cell { display: flex; align-items: center; gap: 8px; }
 .name-text { font-size: 13px; color: var(--color-text); font-weight: 500; }
 .btn-edit-icon {
   border: none; background: none; cursor: pointer; color: var(--color-text-muted);
-  padding: 2px; border-radius: 4px; display: inline-flex; align-items: center;
-  opacity: 0; transition: all var(--transition);
+  padding: 3px; border-radius: 4px; display: inline-flex; align-items: center;
+  transition: all var(--transition);
   &:hover { color: var(--color-primary); background: var(--color-primary-bg); }
 }
-.el-table__row:hover .btn-edit-icon { opacity: 1; }
 
-.category-tag {
-  display: inline-block; padding: 2px 10px; border-radius: 10px;
-  font-size: 12px; background: var(--color-active); color: #7B61FF;
-  &.chat { background: #fef7e0; color: #d09030; }
-}
-
-.btn-view { border: 1.5px solid #7B61FF; border-radius: 6px; background: #fff; color: #7B61FF; font-size: 11px; cursor: pointer; padding: 3px 10px; margin-right: 6px; transition: all var(--transition);
-  &:hover { background: #f0edff; } }
+.btn-view { border: 1.5px solid var(--color-primary); border-radius: 6px; background: transparent; color: var(--color-primary); font-size: 11px; cursor: pointer; padding: 3px 10px; transition: all var(--transition);
+  &:hover { background: var(--color-primary-bg); } }
 .btn-del { border: none; background: none; color: #f56c6c; font-size: 11px; cursor: pointer; padding: 3px 6px; border-radius: 4px; transition: all var(--transition);
   &:hover { background: #fef0f0; } }
 

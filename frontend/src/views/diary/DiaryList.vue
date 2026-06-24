@@ -165,28 +165,26 @@ onMounted(fetchAllDiaries)
     justify-content: space-between;
     align-items: center;
     margin-bottom: 16px;
-    h2 { font-size: 22px; margin: 0; }
+    h2 { font-size: 22px; margin: 0; color: var(--color-text); }
   }
 
-  .mood-filters {
-    margin: 12px 0;
-  }
+  .mood-filters { margin: 12px 0; }
 
   .diary-card {
-    cursor: pointer;
-    transition: transform 0.15s;
-    &:hover { transform: translateY(-2px); }
+    cursor: pointer; border-radius: var(--radius-lg);
+    transition: all var(--transition);
+    &:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
 
     .card-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       margin-bottom: 8px;
-      .diary-title { font-size: 16px; font-weight: 600; color: #1a1a2e; }
+      .diary-title { font-size: 16px; font-weight: 600; color: var(--color-text); }
     }
 
     .diary-preview {
-      color: #666;
+      color: var(--color-text-secondary);
       font-size: 13px;
       line-height: 1.5;
       margin: 0;

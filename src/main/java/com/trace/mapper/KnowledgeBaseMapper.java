@@ -45,11 +45,9 @@ public interface KnowledgeBaseMapper extends BaseMapper<KnowledgeBase> {
     /** 按 ID 列表删除 vector_store */
     void deleteFromVectorStore(@Param("ids") List<String> ids);
 
-    /** 按 fileName + userId 删除 vector_store */
-    void deleteFromVectorStoreByFileName(@Param("userId") Long userId,
-                                         @Param("fileName") String fileName);
+    /** 按 kbId 删除 vector_store */
+    void deleteFromVectorStoreByKbId(@Param("kbId") Long kbId);
 
-    /** 从 vector_store 按 fileName 读取所有分块 */
-    List<Map<String, Object>> findVectorChunksByFileName(@Param("userId") Long userId,
-                                                          @Param("fileName") String fileName);
+    /** 按 userId 删除 vector_store */
+    void deleteFromVectorStoreByUserId(@Param("userId") Long userId);
 }

@@ -59,6 +59,7 @@ public class WeeklyReportServiceImpl implements WeeklyReportService {
 
         String content = chatClientBuilder.build().prompt().system(SYSTEM_PROMPT).user("请生成周报：\n" + ctx).call().content();
         String url = pdfService.generateAndUpload("成长周报_" + ws + "_" + we, content);
+        assert content != null;
         WeeklyReport r = WeeklyReport.builder().userId(userId).weekStart(ws).weekEnd(we)
                 .summary(content.length() > 200 ? content.substring(0, 200) + "..." : content)
                 .fullContent(content).reportUrl(url).build();

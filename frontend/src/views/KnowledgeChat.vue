@@ -1,79 +1,122 @@
 <template>
   <div class="knowledge-page">
-    <!-- 模式选择器 -->
-    <div class="mode-bar">
-      <button class="mode-btn" :class="{ active: chatMode === 'direct' }" @click="chatMode = 'direct'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-        默认对话
-      </button>
-      <button class="mode-btn" :class="{ active: chatMode === 'web' }" @click="chatMode = 'web'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-        联网搜索
-      </button>
-      <button class="mode-btn" :class="{ active: chatMode === 'rag' }" @click="chatMode = 'rag'">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="15" height="15"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
-        RAG 知识库
-      </button>
-    </div>
-
-    <!-- RAG 知识库选择 -->
-    <div v-if="chatMode === 'rag'" class="rag-selector">
-      <span class="rag-label">选择知识库：</span>
-      <el-select v-model="selectedKbTopic" placeholder="选择知识库" size="small" style="width:200px">
-        <el-option v-for="kb in kbList" :key="kb" :label="kb" :value="kb"/>
-      </el-select>
-    </div>
-
-    <!-- 欢迎界面 -->
+    <!-- 欢迎界面（无消息时） -->
     <div v-if="messages.length === 0 && !streamingContent && historyLoaded" class="welcome-area">
-      <div class="welcome-card">
-        <h1 class="welcome-title">Trace 问答</h1>
+      <div class="welcome-bg"></div>
+      <div class="welcome-content">
+        <div class="welcome-logo">
+          <svg viewBox="0 0 60 60" width="60" height="60">
+            <rect width="60" height="60" rx="16" fill="url(#wl)"/>
+            <defs><linearGradient id="wl" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#6C5CE7"/><stop offset="100%" stop-color="#8B7CF0"/>
+            </linearGradient></defs>
+            <text x="30" y="40" text-anchor="middle" fill="white" font-size="30" font-weight="700">T</text>
+          </svg>
+        </div>
+        <h1 class="welcome-title">有什么我可以帮你的？</h1>
         <p class="welcome-sub">{{ modeLabel }}</p>
+        <!-- 内联输入 -->
+        <div class="welcome-input-row">
+          <div class="mode-capsule">
+            <button class="capsule-btn" :class="{ active: chatMode === 'direct' }" @click="chatMode = 'direct'" title="默认对话">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/></svg>
+            </button>
+            <button class="capsule-btn" :class="{ active: chatMode === 'web' }" @click="chatMode = 'web'" title="联网搜索">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            </button>
+            <button class="capsule-btn" :class="{ active: chatMode === 'rag' }" @click="chatMode = 'rag'" title="RAG 知识库">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            </button>
+          </div>
+          <div class="input-group">
+            <!-- RAG 知识库选择 -->
+            <div v-if="chatMode === 'rag'" class="rag-inline">
+              <el-select v-model="selectedKbTopic" placeholder="选择知识库" size="small" style="width:160px">
+                <el-option v-for="kb in kbList" :key="kb" :label="kb" :value="kb"/>
+              </el-select>
+            </div>
+            <input
+              ref="inputRef"
+              v-model="inputText"
+              class="chat-input-welcome"
+              :placeholder="inputPlaceholder"
+              @keydown.enter="sendMessage"
+            />
+            <button class="btn-send-welcome" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKbTopic)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+                <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
 
-    <!-- 对话区 -->
-    <div v-else class="chat-area" ref="chatAreaRef" @scroll="onChatScroll">
-      <div v-if="loadingHistory" class="loading-more">加载中...</div>
-      <div v-else-if="!hasMoreHistory && messages.length > 0" class="no-more">—— 已加载全部历史 ——</div>
-
-      <!-- DeepSeek 风格消息 -->
-      <div v-for="(m, i) in messages" :key="i" class="ds-msg" :class="{ user: m.role === 'user' }">
-        <div class="ds-msg-inner">
-          <MarkdownRenderer v-if="m.role === 'ai'" :content="m.content" />
-          <template v-else>{{ m.content }}</template>
+    <!-- 对话区（有消息时） -->
+    <div v-else class="chat-layout">
+      <!-- 顶部模式栏 -->
+      <div class="chat-topbar">
+        <div class="mode-capsule">
+          <button class="capsule-btn" :class="{ active: chatMode === 'direct' }" @click="chatMode = 'direct'" title="默认对话">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/></svg>
+          </button>
+          <button class="capsule-btn" :class="{ active: chatMode === 'web' }" @click="chatMode = 'web'" title="联网搜索">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+          </button>
+          <button class="capsule-btn" :class="{ active: chatMode === 'rag' }" @click="chatMode = 'rag'" title="RAG 知识库">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </button>
+        </div>
+        <div v-if="chatMode === 'rag'" class="rag-inline">
+          <el-select v-model="selectedKbTopic" placeholder="选择知识库" size="small" style="width:160px">
+            <el-option v-for="kb in kbList" :key="kb" :label="kb" :value="kb"/>
+          </el-select>
         </div>
       </div>
 
-      <!-- 流式输出 -->
-      <div v-if="streaming" class="ds-msg ai">
-        <div class="ds-msg-inner">
-          <MarkdownRenderer :content="streamingContent || '思考中...'" :streaming="true" />
+      <!-- 消息列表 -->
+      <div class="chat-area" ref="chatAreaRef" @scroll="onChatScroll">
+        <div v-if="loadingHistory" class="loading-more">加载中...</div>
+        <div v-else-if="!hasMoreHistory && messages.length > 0" class="no-more">—— 已加载全部历史 ——</div>
+
+        <div v-for="(m, i) in messages" :key="i" class="ds-msg" :class="{ user: m.role === 'user' }">
+          <div class="ds-msg-inner">
+            <MarkdownRenderer v-if="m.role === 'ai'" :content="m.content" />
+            <template v-else>{{ m.content }}</template>
+          </div>
+        </div>
+
+        <!-- 流式输出 -->
+        <div v-if="streaming" class="ds-msg ai">
+          <div class="ds-msg-inner streaming">
+            <MarkdownRenderer :content="streamingContent || '思考中...'" :streaming="true" />
+            <span class="streaming-cursor">|</span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 底部输入 -->
-    <div class="input-bar">
-      <div class="input-row">
+    <!-- 底部输入浮栏（有消息时） -->
+    <div v-if="messages.length > 0 || streaming" class="input-bar-float">
+      <div class="input-row-float">
         <input
           ref="inputRef"
           v-model="inputText"
-          class="chat-input"
+          class="chat-input-float"
           :placeholder="inputPlaceholder"
           @keydown.enter="sendMessage"
           :disabled="streaming"
         />
         <template v-if="streaming">
-          <button class="btn-stop" @click="stopGeneration">
+          <button class="btn-stop-float" @click="stopGeneration">
             <svg viewBox="0 0 24 24" fill="white" width="14" height="14"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>
             停止
           </button>
         </template>
         <template v-else>
-          <button class="btn-send" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKbTopic)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="17" height="17">
-              <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          <button class="btn-send-float" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKbTopic)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
+              <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
             </svg>
           </button>
         </template>
@@ -100,10 +143,10 @@ const kbList = ref<string[]>([])
 const modeLabel = computed(() => {
   if (chatMode.value === 'web') return '联网搜索 · 实时获取最新信息'
   if (chatMode.value === 'rag') return 'RAG 知识库 · 基于你的文档回答'
-  return '大模型直接回答 · 基于内置知识'
+  return '基于大模型知识直接回答'
 })
 const inputPlaceholder = computed(() => {
-  if (chatMode.value === 'web') return '联网搜索模式，Enter 发送...'
+  if (chatMode.value === 'web') return '联网搜索模式，输入问题...'
   if (chatMode.value === 'rag') return selectedKbTopic.value ? `向「${selectedKbTopic.value}」提问...` : '请先选择知识库'
   return '输入你的问题，Enter 发送...'
 })
@@ -234,83 +277,142 @@ onMounted(() => {
 
 <style lang="scss" scoped>
 .knowledge-page {
-  display: flex; flex-direction: column; height: calc(100vh - 54px - 50px); max-width: 760px; margin: 0 auto;
+  display: flex; flex-direction: column; height: 100%;
+  max-width: 760px; margin: 0 auto;
 }
 
-// ===== 模式栏 =====
-.mode-bar {
-  display: flex; gap: 6px; padding: 12px 0 6px; justify-content: center;
-  .mode-btn {
-    display: flex; align-items: center; gap: 5px;
-    padding: 7px 16px; border-radius: 20px; border: 1.5px solid var(--color-border);
-    background: var(--color-card); color: var(--color-text-secondary);
-    font-size: 12.5px; cursor: pointer; transition: all var(--transition);
-    &:hover { border-color: var(--color-primary); color: var(--color-primary); }
-    &.active { background: var(--color-primary); color: #fff; border-color: var(--color-primary); }
+// ── 模式胶囊 ──
+.mode-capsule {
+  display: flex; gap: 2px; background: var(--color-border-light); border-radius: 10px; padding: 3px;
+  .capsule-btn {
+    display: flex; align-items: center; justify-content: center;
+    width: 32px; height: 30px; border: none; border-radius: 8px;
+    background: transparent; color: var(--color-text-muted); cursor: pointer;
+    transition: all var(--transition-fast);
+    &:hover { color: var(--color-text-secondary); }
+    &.active { background: var(--color-card); color: var(--color-primary); box-shadow: var(--shadow-xs); }
   }
 }
 
-// RAG 选择器
-.rag-selector {
-  display: flex; align-items: center; gap: 8px; justify-content: center; padding: 4px 0 8px;
-  .rag-label { font-size: 12px; color: var(--color-text-muted); }
-}
-
-// ===== 欢迎区 =====
+// ── 欢迎区 ──
 .welcome-area {
-  flex:1; display:flex; align-items:center; justify-content:center;
-  .welcome-card { text-align:center; }
-  .welcome-title { font-size:30px;font-weight:700;color:var(--color-text);margin:0 0 10px;letter-spacing:-0.5px; }
-  .welcome-sub { font-size:14px;color:var(--color-text-secondary);margin:0; }
+  flex: 1; display: flex; align-items: center; justify-content: center; position: relative;
+  .welcome-content {
+    position: relative; z-index: 1; text-align: center; max-width: 560px; width: 100%;
+  }
+  .welcome-logo { margin-bottom: 16px; }
+  .welcome-title { font-size: 26px; font-weight: 700; color: var(--color-text); margin: 0 0 8px; }
+  .welcome-sub { font-size: 13px; color: var(--color-text-muted); margin: 0 0 24px; }
+  .welcome-input-row {
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    .input-group { display: flex; align-items: center; gap: 8px; width: 100%; }
+    .rag-inline { margin-right: 4px; }
+  }
+  .chat-input-welcome {
+    flex: 1; height: 48px; padding: 0 20px; font-size: 14px;
+    border: 1.5px solid var(--color-border); border-radius: var(--radius-full);
+    outline: none; background: var(--color-input); color: var(--color-text);
+    transition: all var(--transition);
+    &::placeholder { color: var(--color-text-muted); }
+    &:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(108,92,231,.08); }
+  }
+  .btn-send-welcome {
+    width: 44px; height: 44px; border-radius: 50%; border: none; flex-shrink: 0;
+    background: var(--color-primary-gradient); color: #fff; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+    box-shadow: 0 4px 14px rgba(108,92,231,.25);
+    &:hover:not(:disabled) { transform: scale(1.06); box-shadow: 0 6px 20px rgba(108,92,231,.35); }
+    &:disabled { opacity: .35; cursor: default; box-shadow: none; }
+  }
 }
 
-// ===== 对话区 DeepSeek 风格 =====
+// ── 对话布局 ──
+.chat-layout {
+  flex: 1; display: flex; flex-direction: column; overflow: hidden;
+}
+
+// ── 顶部模式栏 ──
+.chat-topbar {
+  display: flex; align-items: center; gap: 10px; padding: 8px 0 12px;
+  .rag-inline { flex-shrink: 0; }
+}
+
+// ── 对话区 ──
 .chat-area {
-  flex:1;overflow-y:auto;padding:20px 0 8px;
+  flex: 1; overflow-y: auto; padding: 8px 0 0;
 }
 
+// ── 消息气泡 ──
 .ds-msg {
-  display: flex; margin-bottom: 16px;
+  display: flex; margin-bottom: 14px;
   &.user { justify-content: flex-end;
-    .ds-msg-inner { background: var(--color-primary); color: #fff; border-radius: 14px 4px 14px 14px; }
+    .ds-msg-inner {
+      background: var(--color-primary-gradient); color: #fff;
+      border-radius: 14px 4px 14px 14px;
+    }
   }
   &.ai, &:not(.user) {
-    .ds-msg-inner { background: var(--color-bubble-ai); color: var(--color-text); border-radius: 4px 14px 14px 14px; }
+    .ds-msg-inner {
+      background: var(--color-bubble-ai); color: var(--color-text);
+      border-radius: 4px 14px 14px 14px; position: relative;
+    }
   }
   .ds-msg-inner {
     max-width: 82%; padding: 10px 16px; font-size: 14px; line-height: 1.65; word-break: break-word;
+    box-shadow: var(--shadow-xs);
     :deep(.markdown-body) { font-size: 14px; }
   }
 }
 
-// ===== 底部输入 =====
-.input-bar { padding: 14px 0 8px; }
-.input-row { display:flex;gap:10px;align-items:center; }
-.chat-input {
-  flex:1;height:48px;padding:0 20px;font-size:14px;border:1.5px solid var(--color-border);border-radius:24px;outline:none;
-  background:var(--color-card);color:var(--color-text);transition:all var(--transition);
-  &::placeholder { color:var(--color-text-muted); }
-  &:focus { border-color:var(--color-primary);box-shadow:0 0 0 3px rgba(108,92,231,.08); }
-  &:disabled { opacity:0.6; }
+// ── 流式动画 ──
+.streaming {
+  .streaming-cursor {
+    display: inline-block; color: var(--color-primary); font-weight: 700;
+    animation: blink 0.8s infinite; margin-left: 2px;
+  }
 }
-.btn-send {
-  width:44px;height:44px;border-radius:50%;border:none;
-  background:linear-gradient(135deg,#6C5CE7,#7C6EF0);color:#fff;cursor:pointer;
-  display:flex;align-items:center;justify-content:center;transition:all var(--transition);flex-shrink:0;
-  box-shadow:0 4px 14px rgba(108,92,231,.25);
-  &:hover:not(:disabled) { transform:scale(1.06);box-shadow:0 6px 20px rgba(108,92,231,.35); }
-  &:disabled { opacity:.35;cursor:default;box-shadow:none; }
+@keyframes blink {
+  0%, 100% { opacity: 1; } 50% { opacity: 0; }
 }
-.btn-stop {
-  display:flex;align-items:center;gap:6px;padding:0 22px;height:44px;border-radius:22px;border:none;
-  background:linear-gradient(135deg,#6C5CE7,#7C6EF0);color:#fff;font-size:13px;font-weight:500;
-  cursor:pointer;transition:all var(--transition);flex-shrink:0;
-  box-shadow:0 4px 14px rgba(108,92,231,.25);
-  &:hover { transform:translateY(-1px);box-shadow:0 6px 20px rgba(108,92,231,.35); }
+
+// ── 底部输入浮栏 ──
+.input-bar-float {
+  padding: 12px 0 8px;
 }
-</style>
-<style lang="scss" scoped>
-.global-disclaimer { font-size: 11px; color: var(--color-text-muted) !important; text-align: center; margin: 6px auto 0; max-width: 500px; line-height: 1.4; }
-.loading-more { text-align: center; font-size: 12px; color: var(--color-text-muted); padding: 8px 0; }
-.no-more { text-align: center; font-size: 11px; color: var(--color-text-muted); padding: 12px 0 4px; opacity: 0.6; }
+.input-row-float {
+  display: flex; gap: 10px; align-items: center;
+}
+.chat-input-float {
+  flex: 1; height: 48px; padding: 0 20px; font-size: 14px;
+  border: 1.5px solid var(--color-border); border-radius: var(--radius-full);
+  outline: none; background: var(--color-input); color: var(--color-text);
+  transition: all var(--transition);
+  &::placeholder { color: var(--color-text-muted); }
+  &:focus { border-color: var(--color-primary); box-shadow: 0 0 0 3px rgba(108,92,231,.08); }
+  &:disabled { opacity: 0.6; }
+}
+.btn-send-float {
+  width: 44px; height: 44px; border-radius: 50%; border: none; flex-shrink: 0;
+  background: var(--color-primary-gradient); color: #fff; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; transition: all var(--transition);
+  box-shadow: 0 4px 14px rgba(108,92,231,.25);
+  &:hover:not(:disabled) { transform: scale(1.06); box-shadow: 0 6px 20px rgba(108,92,231,.35); }
+  &:disabled { opacity: .35; cursor: default; box-shadow: none; }
+}
+.btn-stop-float {
+  display: flex; align-items: center; gap: 6px; padding: 0 22px; height: 44px;
+  border-radius: var(--radius-full); border: none;
+  background: var(--color-primary-gradient); color: #fff; font-size: 13px; font-weight: 500;
+  cursor: pointer; transition: all var(--transition); flex-shrink: 0;
+  box-shadow: 0 4px 14px rgba(108,92,231,.25);
+  &:hover { transform: translateY(-1px); }
+}
+
+// ── 其他 ──
+.global-disclaimer, .loading-more, .no-more {
+  font-size: 11px; color: var(--color-text-muted); text-align: center;
+  margin: 6px auto 0; max-width: 500px; line-height: 1.4;
+}
+.loading-more { padding: 8px 0; }
+.no-more { padding: 12px 0 4px; opacity: 0.6; }
 </style>

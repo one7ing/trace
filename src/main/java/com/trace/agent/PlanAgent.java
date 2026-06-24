@@ -25,10 +25,6 @@ public class PlanAgent extends AbstractAgent {
     @Override
     public String name() { return "plan"; }
 
-    @Override
-    public boolean canHandle(String userInput, Long userId) {
-        return matchKeywords(userInput, "计划", "目标", "规划", "学习路线", "备考");
-    }
 
     @Override
     protected String loadSystemPrompt() {

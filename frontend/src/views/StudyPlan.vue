@@ -93,17 +93,9 @@
           <el-select v-model="checkinPlanId" placeholder="选择计划" size="small" style="width:180px">
             <el-option v-for="p in completedPlans" :key="p.id" :label="p.goal" :value="p.id" />
           </el-select>
-          <div class="face-wrapper" :class="{ happy: checkinHover, bigsmile: checkinDone }">
-            <div class="face">
-              <div class="eye eye-left"></div>
-              <div class="eye eye-right"></div>
-              <div class="mouth"></div>
-            </div>
-          </div>
           <el-button
             type="primary" size="small"
             @click="handleCheckIn" :loading="checkingIn" :disabled="!checkinPlanId"
-            @mouseenter="checkinHover = true" @mouseleave="checkinHover = false"
             class="checkin-btn"
           >
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" width="13" height="13" style="vertical-align:-2px;margin-right:3px">
@@ -113,11 +105,14 @@
           </el-button>
         </div>
         <div v-if="activeCheckinPlan" class="checkin-right">
-          <div class="mini-progress">
-            <span class="mini-progress-text">{{ checkinProgress.checked }}/{{ activeCheckinPlan.totalDuration || '?' }}天</span>
-            <el-progress :percentage="checkinProgress.percent" :stroke-width="6" :show-text="false"
-              :color="checkinProgress.percent >= 100 ? '#67c23a' : '#7B61FF'" style="width:120px" />
-          </div>
+          <!-- 进度环 -->
+          <svg viewBox="0 0 60 60" class="checkin-ring" :class="{ done: checkinProgress.percent >= 100 }">
+            <circle cx="30" cy="30" r="24" fill="none" stroke="var(--color-border-light)" stroke-width="4"/>
+            <circle cx="30" cy="30" r="24" fill="none" stroke="var(--color-primary)" stroke-width="4" stroke-linecap="round"
+              :stroke-dasharray="151" :stroke-dashoffset="151 - 151 * checkinProgress.percent / 100"
+              transform="rotate(-90 30 30)" style="transition: stroke-dashoffset 0.6s ease"/>
+            <text x="30" y="34" text-anchor="middle" fill="var(--color-text)" font-size="13" font-weight="700">{{ checkinProgress.checked }}/{{ activeCheckinPlan.totalDuration || '?' }}</text>
+          </svg>
           <div class="week-dots">
             <span v-for="(d, i) in weekStatus" :key="i" class="week-dot"
               :class="{ checked: d.checked, today: d.isToday }"
@@ -557,63 +552,34 @@ onUnmounted(() => {
   }
 
   .history-card {
-    margin-bottom: 8px;
+    margin-bottom: 8px; border-radius: var(--radius-lg);
+    transition: all var(--transition);
+    &:hover { box-shadow: var(--shadow-sm); }
     .history-header {
       display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
-      .history-goal { flex: 1; font-weight: 600; color: var(--color-text); min-width: 120px; }
+      .history-goal { flex: 1; font-weight: 600; color: var(--color-text); min-width: 120px; font-size: 14px; }
       .history-date { font-size: 12px; color: var(--color-text-muted); white-space: nowrap; }
     }
   }
 
   .checkin-card {
-    margin-bottom: 20px;
+    margin-bottom: 20px; border-radius: var(--radius-lg);
     :deep(.el-card__body) { padding: 14px 20px; }
     .checkin-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
     .checkin-left { display: flex; align-items: center; gap: 10px; }
     .checkin-right { display: flex; align-items: center; gap: 14px; }
-    .mini-progress { display: flex; align-items: center; gap: 8px;
-      .mini-progress-text { font-size: 12px; color: var(--color-text-secondary); white-space: nowrap; }
+    .checkin-ring {
+      width: 60px; height: 60px; flex-shrink: 0;
+      &.done circle:last-child { stroke: #67c23a; }
     }
 
-    .face-wrapper {
-      width: 32px; height: 32px; position: relative;
-      .face {
-        width: 32px; height: 32px; border-radius: 50%;
-        background: var(--color-weak-bg); border: 1.5px solid var(--color-weak-border);
-        position: relative; transition: background .4s, border-color .4s;
-      }
-      .eye {
-        position: absolute; top: 9px; width: 4px; height: 4px;
-        border-radius: 50%; background: var(--color-weak-text);
-        transition: transform .3s, height .3s;
-        &.eye-left { left: 8px; } &.eye-right { right: 8px; }
-      }
-      .mouth {
-        position: absolute; bottom: 7px; left: 50%; transform: translateX(-50%);
-        width: 14px; height: 6px; border-radius: 0 0 14px 14px;
-        border-bottom: 2px solid var(--color-weak-text); transition: all .4s;
-      }
-      .mouth { border-radius: 14px 14px 0 0; border-bottom: none; border-top: 2px solid var(--color-weak-text); }
-      .eye { transform: translateY(0); }
-      &.happy {
-        .face { background: var(--color-score-bg); border-color: #f7dc6f; }
-        .mouth { border-radius: 0 0 14px 14px; border-top: none; border-bottom: 2px solid var(--color-weak-text); height: 8px; width: 16px; }
-        .eye { transform: translateY(-1px); }
-      }
-      &.bigsmile {
-        .face { background: #eafaf1; border-color: #82e0aa; }
-        .mouth { border-radius: 0 0 16px 16px; border-top: none; border-bottom: 2px solid #27ae60; height: 10px; width: 18px; }
-        .eye { transform: scaleY(0.4) translateY(-2px); }
-      }
-    }
-
-    .checkin-btn { transition: all .2s; }
+    .checkin-btn { transition: all var(--transition); }
     .week-dots { display: flex; gap: 4px; }
     .week-dot {
-      width: 22px; height: 22px; border-radius: 50%;
+      width: 24px; height: 24px; border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 10px; color: var(--color-text-muted); background: var(--color-bubble-ai);
-      transition: all .15s;
+      font-size: 10px; color: var(--color-text-muted); background: var(--color-border-light);
+      transition: all var(--transition);
       &.checked { background: var(--color-primary); color: #fff; }
       &.today { box-shadow: 0 0 0 2px var(--color-primary); background: var(--color-primary-bg); color: var(--color-primary);
         &.checked { background: var(--color-primary); color: #fff; } }

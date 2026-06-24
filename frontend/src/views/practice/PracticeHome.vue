@@ -309,9 +309,9 @@ onMounted(() => {
 
 // 系统题库方向标签
 .tag-grid { display:flex; flex-wrap:wrap; gap:7px; }
-.tag-btn { padding:6px 14px; border-radius:7px; border: 1.5px solid var(--color-border); background:var(--color-card); color:var(--color-text-secondary); font-size:12.5px; cursor:pointer; transition:all var(--transition);
-  &:hover { border-color:var(--color-primary); color:#7B61FF; }
-  &.active { border-color:#7B61FF; background:var(--color-active); color:#7B61FF; font-weight:500; }
+.tag-btn { padding:8px 18px; border-radius:10px; border: 1.5px solid var(--color-border); background:var(--color-card); color:var(--color-text-secondary); font-size:13px; cursor:pointer; transition:all var(--transition); font-weight: 500;
+  &:hover { border-color:var(--color-primary); color:var(--color-primary); transform: translateY(-1px); }
+  &.active { border-color:var(--color-primary); background:var(--color-primary); color:#fff; font-weight:500; }
 }
 
 // 我的题库
@@ -320,9 +320,9 @@ onMounted(() => {
 .btn-create-bank { padding:5px 14px; border-radius:7px; border: 1.5px solid #7B61FF; background:var(--color-card); color:#7B61FF; font-size:12px; cursor:pointer; transition:all var(--transition);
   &:hover { background:var(--color-active); } }
 .bank-grid { display:flex; flex-direction:column; gap:8px; }
-.bank-card { display:flex; align-items:center; justify-content:space-between; padding:10px 16px; border-radius:9px; border:1.5px solid var(--color-border); background:var(--color-card); cursor:pointer; transition:all var(--transition);
-  &:hover { border-color:var(--color-primary); }
-  &.active { border-color:#7B61FF; background:var(--color-active); } }
+.bank-card { display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-radius:var(--radius-lg); border:1.5px solid var(--color-border); background:var(--color-card); cursor:pointer; transition:all var(--transition);
+  &:hover { border-color:var(--color-primary); transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  &.active { border-color:var(--color-primary); background:var(--color-active); } }
 .bank-info { display:flex; align-items:center; gap:10px; }
 .bank-name { font-size:14px; font-weight:500; color:var(--color-text); }
 .bank-count { font-size:12px; color:var(--color-text-muted); background:var(--color-bubble-ai); padding:2px 8px; border-radius:10px; }

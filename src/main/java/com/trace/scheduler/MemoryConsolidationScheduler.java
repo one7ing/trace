@@ -25,7 +25,7 @@ public class MemoryConsolidationScheduler {
     private final MemoryConsolidation memoryConsolidation;
     private final UserMapper userMapper;
 
-    @Scheduled(cron = "0 0 0 * * SUN")
+    @Scheduled(cron = "0 0 3 ? * SUN")
     public void consolidateAllUsers() {
         log.info("=== 长期记忆整合定时任务开始 ===");
         // 获取所有用户ID
