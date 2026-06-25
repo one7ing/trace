@@ -7,7 +7,7 @@ import router from './router'
 import './styles/main.scss'
 
 // ── 清除旧版本缓存，强制重新登录 ──
-const CACHE_VERSION = '2'
+const CACHE_VERSION = '3'
 const storedVersion = localStorage.getItem('trace-cache-ver')
 if (storedVersion !== CACHE_VERSION) {
   // 清除所有 trace-* 开头的缓存

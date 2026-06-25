@@ -1,10 +1,12 @@
 package com.trace.controller;
 
+import com.constant.constant;
 import com.trace.dto.ApiResponse;
 import com.trace.dto.LoginRequest;
 import com.trace.dto.RegisterRequest;
 import com.trace.entity.User;
 import com.trace.service.AuthService;
+import com.trace.service.TokenService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -16,12 +18,13 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.Map;
 
-@Tag(name = "用户认证", description = "注册、登录、个人资料管理")
+@Tag(name = "用户认证", description = "注册、登录、刷新Token、登出、个人资料管理")
 @RestController
 @RequestMapping("/api/auth")
 @RequiredArgsConstructor
 public class AuthController {
     private final AuthService authService;
+    private final TokenService tokenService;
 
     @Operation(summary = "注册")
     @PostMapping("/register")
@@ -33,6 +36,29 @@ public class AuthController {
     @PostMapping("/login")
     public ResponseEntity<ApiResponse<Map<String, Object>>> login(@Valid @RequestBody LoginRequest r) {
         return ResponseEntity.ok(ApiResponse.success("登录成功", authService.login(r)));
+    }
+
+    @Operation(summary = "刷新短Token，用长Token换取新的accessToken")
+    @PostMapping("/refresh")
+    public ResponseEntity<ApiResponse<Map<String, Object>>> refresh(@RequestBody Map<String, String> body) {
+        String refreshToken = body.get("refreshToken");
+        if (refreshToken == null || refreshToken.isBlank()) {
+            return ResponseEntity.ok(ApiResponse.error(constant.Token.CODE_REFRESH_INVALID, "refreshToken不能为空"));
+        }
+        // 用refreshToken换取新的accessToken
+        String newAccessToken = tokenService.refreshAccessToken(refreshToken);
+        if (newAccessToken == null) {
+            return ResponseEntity.ok(ApiResponse.error(constant.Token.CODE_REFRESH_INVALID, "refreshToken无效或已过期"));
+        }
+        return ResponseEntity.ok(ApiResponse.success("Token已刷新", Map.of("accessToken", newAccessToken)));
+    }
+
+    @Operation(summary = "登出，删除服务端refreshToken")
+    @PostMapping("/logout")
+    public ResponseEntity<ApiResponse<Void>> logout(@AuthenticationPrincipal Long userId) {
+        // 删除Redis中的refreshToken
+        tokenService.deleteRefreshToken(userId);
+        return ResponseEntity.ok(ApiResponse.success("已登出", null));
     }
 
     @Operation(summary = "上传头像")

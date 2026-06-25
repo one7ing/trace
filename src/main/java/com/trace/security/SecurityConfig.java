@@ -1,5 +1,7 @@
 package com.trace.security;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,6 +19,7 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.List;
+import java.util.Map;
 
 @Configuration
 @EnableWebSecurity
@@ -25,6 +28,7 @@ public class SecurityConfig {
 
     /** 自定义的 JWT 认证过滤器，用来从请求中提取 Token 并验证身份 */
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 静态初始化块。
@@ -55,7 +59,8 @@ public class SecurityConfig {
                         // 登录、注册等认证接口：直接放行，不需要 Token
                         .requestMatchers("/api/auth/**").permitAll()
                         // Swagger / Knife4j 接口文档页面：直接放行
-                        .requestMatchers("/doc.html", "/v3/api-docs/**", "/webjars/**", "/swagger-resources/**", "/swagger-ui/**").permitAll()
+                        .requestMatchers("/doc.html", "/v3/api-docs/**", "/webjars/**",
+                                "/swagger-resources/**", "/swagger-ui/**").permitAll()
                         // 其他所有 /api/** 接口：必须携带有效 Token 才能访问
                         .requestMatchers("/api/**").authenticated()
                         // 其他请求（如静态资源）：直接放行
@@ -63,10 +68,23 @@ public class SecurityConfig {
                 )
 
                 // 5. 在 Spring Security 的认证过滤器之前，插入我们自定义的 JWT 过滤器
-                //    这样每个请求进来时，先由 JwtAuthenticationFilter 解析 Token 并设置登录态
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
 
-                // 6. 显式保存安全上下文：确保 SecurityContext 在请求结束时被保存
+                // 6. 自定义未认证返回JSON（替代默认的重定向/403页面）
+                .exceptionHandling(ex -> ex
+                        .authenticationEntryPoint((request, response, authException) -> {
+                            response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+                            response.setContentType("application/json;charset=UTF-8");
+                            // 使用HashMap替代Map.of，因为Map.of不接受null值
+                            java.util.Map<String, Object> body = new java.util.HashMap<>();
+                            body.put("code", 40100);
+                            body.put("message", "未认证，请先登录");
+                            body.put("data", null);
+                            response.getWriter().write(objectMapper.writeValueAsString(body));
+                        })
+                )
+
+                // 7. 显式保存安全上下文
                 .securityContext(securityContext -> securityContext.requireExplicitSave(false));
 
         return http.build();

@@ -193,12 +193,38 @@ async function sendMessage() {
     const body: any = { message: text, mode: chatMode.value }
     if (chatMode.value === 'rag') body.knowledgeBaseTopic = selectedKbTopic.value
 
-    const resp = await fetch('/api/knowledge/chat', {
+    // 发送流式请求（使用fetch绕过axios）
+    let resp = await fetch('/api/knowledge/chat', {
       method:'POST',
-      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authStore.token}` },
+      headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${authStore.accessToken}` },
       body: JSON.stringify(body),
       signal: abortController.signal,
     })
+
+    // 如果accessToken过期，用refreshToken刷新后重试
+    if (resp.status === 401) {
+      const refreshToken = localStorage.getItem('trace-refreshToken')
+      if (refreshToken) {
+        const refreshResp = await fetch('/api/auth/refresh', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ refreshToken }),
+        })
+        const refreshData = await refreshResp.json()
+        if (refreshData.code === 200 && refreshData.data?.accessToken) {
+          const newToken = refreshData.data.accessToken
+          localStorage.setItem('trace-accessToken', newToken)
+          authStore.accessToken = newToken
+          resp = await fetch('/api/knowledge/chat', {
+            method:'POST',
+            headers:{ 'Content-Type':'application/json', 'Authorization':`Bearer ${newToken}` },
+            body: JSON.stringify(body),
+            signal: abortController.signal,
+          })
+        }
+      }
+    }
+
     if (!resp.ok || !resp.body) throw new Error('请求失败')
     const reader = resp.body.getReader(); const dec = new TextDecoder(); let buf = ''
     while (true) {

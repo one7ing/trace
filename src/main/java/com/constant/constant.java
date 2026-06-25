@@ -36,6 +36,18 @@ public interface constant {
         int DAY_INTERVIEW_SCORE = 25;
         int DAYS_PER_WEEK = 7;
     }
+    interface Token{
+        // Redis中refreshToken的key前缀
+        String REFRESH_TOKEN_PREFIX = "trace:refresh:";
+        // 短token（accessToken）过期时间：30分钟
+        long ACCESS_EXPIRATION_MS = 30 * 60 * 1000L;
+        // 长token（refreshToken）过期时间：7天
+        long REFRESH_EXPIRATION_MS = 7 * 24 * 60 * 60 * 1000L;
+        // accessToken过期错误码
+        int CODE_ACCESS_EXPIRED = 40101;
+        // refreshToken无效错误码
+        int CODE_REFRESH_INVALID = 40102;
+    }
     interface RabbitMQ{
         String PLAN_QUEUE = "trace.plan.generate";
         String PLAN_EXCHANGE = "trace.plan.exchange";

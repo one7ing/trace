@@ -1,6 +1,7 @@
 package com.trace.service.impl;
 
 import com.trace.agent.MemoryExtractAgent;
+import com.trace.service.KnowledgeBaseService;
 import com.trace.service.MemoryService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.amqp.rabbit.annotation.RabbitListener;

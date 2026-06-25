@@ -6,6 +6,7 @@ import com.trace.entity.User;
 import com.trace.mapper.UserMapper;
 import com.trace.security.JwtUtil;
 import com.trace.service.AuthService;
+import com.trace.service.TokenService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -15,7 +16,6 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.Base64;
-import java.util.HashMap;
 import java.util.Map;
 
 @Service
@@ -25,22 +25,36 @@ public class AuthServiceImpl implements AuthService {
     private final UserMapper userMapper;
     private final PasswordEncoder passwordEncoder;
     private final JwtUtil jwtUtil;
+    private final TokenService tokenService;
 
     @Override
     @Transactional
     public Map<String, Object> register(RegisterRequest request) {
+        // 校验用户名和邮箱唯一性
         if (userMapper.existsByUsername(request.getUsername()))
             throw new IllegalArgumentException("用户名已存在");
         if (userMapper.existsByEmail(request.getEmail()))
             throw new IllegalArgumentException("邮箱已被注册");
+        // 构建用户并插入数据库
         User user = User.builder()
                 .username(request.getUsername())
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail()).build();
         userMapper.insert(user);
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-        return Map.of("userId", user.getId(), "username", user.getUsername(),
-                "email", user.getEmail(), "token", token);
+        // 生成双Token
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+        // refreshToken存入Redis
+        tokenService.storeRefreshToken(user.getId(), refreshToken);
+        // 构建返回数据
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("userId", user.getId());
+        result.put("username", user.getUsername());
+        result.put("email", user.getEmail());
+        result.put("avatarUrl", user.getAvatarUrl());
+        result.put("accessToken", accessToken);
+        result.put("refreshToken", refreshToken);
+        return result;
     }
 
     @Override
@@ -52,11 +66,23 @@ public class AuthServiceImpl implements AuthService {
         } else if (request.getUsername() != null && !request.getUsername().isBlank()) {
             user = userMapper.findByUsername(request.getUsername());
         }
+        // 校验密码
         if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
             throw new BadCredentialsException("用户名或密码错误");
-        String token = jwtUtil.generateToken(user.getId(), user.getUsername());
-        return Map.of("userId", user.getId(), "username", user.getUsername(),
-                "email", user.getEmail(), "token", token);
+        // 生成双Token
+        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getUsername());
+        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
+        // refreshToken存入Redis
+        tokenService.storeRefreshToken(user.getId(), refreshToken);
+        // 构建返回数据
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("userId", user.getId());
+        result.put("username", user.getUsername());
+        result.put("email", user.getEmail());
+        result.put("avatarUrl", user.getAvatarUrl());
+        result.put("accessToken", accessToken);
+        result.put("refreshToken", refreshToken);
+        return result;
     }
 
     @Override

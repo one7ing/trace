@@ -286,7 +286,7 @@ function startStreaming(planId: number, goal: string) {
   // 关闭已有连接（避免重复连接）
   closeSse()
 
-  const token = localStorage.getItem('trace-token') || ''
+  const token = localStorage.getItem('trace-accessToken') || ''
   const es = new EventSource(`/api/plan/${planId}/stream?token=${encodeURIComponent(token)}`)
   activeEventSource.value = es
 

@@ -1,5 +1,8 @@
 package com.trace.security;
 
+import com.constant.constant;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import io.jsonwebtoken.ExpiredJwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -14,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
@@ -21,6 +25,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     /** JWT 工具类，负责 Token 的生成和解析 */
     private final JwtUtil jwtUtil;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /**
      * 过滤器的核心逻辑。
@@ -33,20 +38,31 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         // 1. 从请求中提取 Token
         String token = extractToken(request);
 
-        // 2. 如果 Token 存在且合法，设置登录态
-        if (StringUtils.hasText(token) && jwtUtil.validateToken(token)) {
-            // 从 Token 中解析出 userId 和 username
-            Long userId = jwtUtil.getUserId(token);
-            String username = jwtUtil.getUsername(token);
+        // 2. 如果 Token 存在，尝试解析并设置登录态
+        if (StringUtils.hasText(token)) {
+            try {
+                // 解析Token，过期会抛出 ExpiredJwtException
+                var claims = jwtUtil.parseToken(token);
+                Long userId = Long.parseLong(claims.getSubject());
+                String username = claims.get("username", String.class);
 
-            // 3. 构建 Spring Security 的认证对象
-            //    Collections.emptyList() 表示当前用户没有特殊角色权限（可根据需要扩展）
-            UsernamePasswordAuthenticationToken authentication =
-                    new UsernamePasswordAuthenticationToken(userId, username, Collections.emptyList());
+                // 3. 构建 Spring Security 的认证对象
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(userId, username, Collections.emptyList());
 
-            // 4. 将认证对象设置到当前线程的安全上下文中
-            //    之后 Controller 中就可以通过 @AuthenticationPrincipal 拿到 userId
-            SecurityContextHolder.getContext().setAuthentication(authentication);
+                // 4. 将认证对象设置到当前线程的安全上下文中
+                SecurityContextHolder.getContext().setAuthentication(authentication);
+            } catch (ExpiredJwtException e) {
+                // Token过期，返回特定错误码供前端拦截器识别
+                writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        constant.Token.CODE_ACCESS_EXPIRED, "access token expired");
+                return;
+            } catch (Exception e) {
+                // Token无效（签名错误、格式错误等）
+                writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                        40100, "invalid token");
+                return;
+            }
         }
 
         // 5. 无论是否携带 Token，都继续执行后续的过滤链
@@ -71,5 +87,17 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             return queryToken;
         }
         return null;
+    }
+
+    /** 向客户端写入JSON格式的错误响应 */
+    private void writeErrorResponse(HttpServletResponse response, int status, int code, String message) throws IOException {
+        response.setStatus(status);
+        response.setContentType("application/json;charset=UTF-8");
+        // 使用HashMap替代Map.of，因为Map.of不接受null值
+        Map<String, Object> body = new java.util.HashMap<>();
+        body.put("code", code);
+        body.put("message", message);
+        body.put("data", null);
+        response.getWriter().write(objectMapper.writeValueAsString(body));
     }
 }

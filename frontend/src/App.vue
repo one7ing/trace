@@ -20,7 +20,7 @@
           <el-dropdown trigger="click" @command="handlePillCommand">
             <div class="email-pill">
               <span class="pill-avatar" :style="pillAvatarStyle">{{ pillAvatarInitial }}</span>
-              <span class="pill-email">{{ authStore.email || authStore.username || '未登录' }}</span>
+              <span class="pill-email">{{ authStore.username || authStore.email || '未登录' }}</span>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="12" height="12" class="pill-arrow"><polyline points="6 9 12 15 18 9"/></svg>
             </div>
             <template #dropdown>
@@ -92,10 +92,9 @@ onMounted(() => {
 
 // ── 头像 ──
 const pillAvatarInput = ref<HTMLInputElement>()
-const pillAvatarUrl = ref(localStorage.getItem('trace-pill-avatar') || '')
 const pillAvatarInitial = computed(() => authStore.username?.charAt(0)?.toUpperCase() || 'U')
-const pillAvatarStyle = computed(() => pillAvatarUrl.value
-  ? { backgroundImage: `url(${pillAvatarUrl.value})`, backgroundSize: 'cover', color: 'transparent' }
+const pillAvatarStyle = computed(() => authStore.avatarUrl
+  ? { backgroundImage: `url(${authStore.avatarUrl})`, backgroundSize: 'cover', color: 'transparent' }
   : {})
 
 // ── 昵称 ──
@@ -103,7 +102,7 @@ const showUsernameDialog = ref(false)
 const newUsername = ref('')
 
 /** 胶囊下拉菜单 */
-function handlePillCommand(command: string) {
+async function handlePillCommand(command: string) {
   switch (command) {
     case 'avatar':
       pillAvatarInput.value?.click()
@@ -113,7 +112,7 @@ function handlePillCommand(command: string) {
       showUsernameDialog.value = true
       break
     case 'logout':
-      authStore.logout()
+      await authStore.logout()
       router.push('/login')
       break
   }
@@ -144,8 +143,9 @@ async function handlePillAvatarUpload(e: Event) {
   const reader = new FileReader()
   reader.onload = async (ev) => {
     const base64 = ev.target?.result as string
-    pillAvatarUrl.value = base64
-    localStorage.setItem('trace-pill-avatar', base64)
+    // 立即更新本地显示
+    authStore.avatarUrl = base64
+    localStorage.setItem('trace-avatarUrl', base64)
     const form = new FormData()
     form.append('file', file)
     try {

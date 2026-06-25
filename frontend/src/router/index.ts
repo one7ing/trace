@@ -79,7 +79,7 @@ const router = createRouter({
 
 // 路由守卫：未登录时跳转到登录页
 router.beforeEach((to, _from, next) => {
-  const token = localStorage.getItem('trace-token')
+  const token = localStorage.getItem('trace-accessToken')
   if (to.path !== '/login' && !token) {
     next('/login')
   } else {
