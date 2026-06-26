@@ -5,6 +5,7 @@ import com.trace.agent.KnowledgeAgent;
 import com.trace.dto.ApiResponse;
 import com.trace.dto.ChatRequest;
 import com.trace.entity.ChatHistory;
+import com.trace.security.RateLimit;
 import com.trace.service.MemoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -27,6 +28,7 @@ public class KnowledgeController {
     private final MemoryService memoryService;
 
     @Operation(summary = "AI 对话", description = "发送消息给 AI，SSE 流式返回。mode: direct(默认) / web(联网) / rag(知识库)")
+    @RateLimit(key = "rate:chat")
     @PostMapping(value = "/chat", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     public Flux<String> chat(@AuthenticationPrincipal Long userId,
                              @Valid @RequestBody ChatRequest request) {

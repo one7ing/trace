@@ -36,12 +36,12 @@
       <div class="input-actions">
         <el-button
           v-if="mode === 'ai'"
-          type="primary" @click="generatePlan" :loading="generating" :disabled="!goal.trim()">
+          type="primary" @click="generatePlan" :loading="generating" :disabled="!goal.trim() || generating">
           AI 生成计划
         </el-button>
         <el-button
           v-else
-          type="success" @click="createPlan" :loading="generating" :disabled="!goal.trim() || !planDuration">
+          type="success" @click="createPlan" :loading="generating" :disabled="!goal.trim() || !planDuration || generating">
           创建计划
         </el-button>
       </div>
@@ -262,7 +262,7 @@ async function generatePlan() {
     ElMessage.info('计划生成任务已提交，预计需要 1-3 分钟...')
     startStreaming(plan.id, plan.goal)
   } catch {}
-  generating.value = false
+  // generating stays true until SSE completes
 }
 
 async function createPlan() {
@@ -296,6 +296,7 @@ function startStreaming(planId: number, goal: string) {
     activeEventSource.value = null
     sseTimeoutHandle.value = null
     generatingPlan.value = null
+    generating.value = false
     ElMessage.warning('计划生成超时，可能仍在后台处理中，请稍后刷新页面查看')
   }, 300000)
   sseTimeoutHandle.value = timeout
@@ -306,6 +307,7 @@ function startStreaming(planId: number, goal: string) {
     activeEventSource.value = null
     sseTimeoutHandle.value = null
     generatingPlan.value = null
+    generating.value = false
     const d = JSON.parse(e.data)
 
     if (d.planContent && d.planContent.startsWith('生成失败')) {
@@ -333,6 +335,7 @@ function startStreaming(planId: number, goal: string) {
     activeEventSource.value = null
     sseTimeoutHandle.value = null
     generatingPlan.value = null
+    generating.value = false
     ElMessage.warning('计划生成连接断开，可能仍在后台处理中，请稍后刷新页面查看')
   }
 }

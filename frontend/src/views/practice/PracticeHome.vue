@@ -54,7 +54,7 @@
 
     <!-- 开始刷题 -->
     <div class="start-section">
-      <button class="btn-start" @click="startPractice" :disabled="practiceSource === 'my' && !selectedBankTopic">
+      <button class="btn-start" @click="startPractice" :disabled="(practiceSource === 'my' && !selectedBankTopic) || starting">
         <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" width="16" height="16"><polygon points="5 3 19 12 5 21 5 3"/></svg>
         开始刷题
       </button>
@@ -166,7 +166,10 @@ const newQuestion = ref('')
 const newAnswer = ref('')
 
 // ── 刷题 ──
+const starting = ref(false)
 async function startPractice() {
+  if (starting.value) return
+  starting.value = true
   try {
     const body: any = {
       questionCount: 100,
@@ -181,7 +184,9 @@ async function startPractice() {
       path:'/practice/start',
       query:{ sessionId:res.data.sessionId, questions: JSON.stringify(res.data.questions), total: String(res.data.totalQuestions) }
     })
-  } catch {}
+  } catch {} finally {
+    starting.value = false
+  }
 }
 
 // ── 题库列表 ──

@@ -77,10 +77,14 @@ const router = createRouter({
   routes,
 })
 
-// 路由守卫：未登录时跳转到登录页
+// 路由守卫：未登录跳登录，已登录不重复进登录页
 router.beforeEach((to, _from, next) => {
   const token = localStorage.getItem('trace-accessToken')
-  if (to.path !== '/login' && !token) {
+  // 已登录用户访问登录页 → 直接进首页
+  if (to.path === '/login' && token) {
+    next('/dashboard')
+  } else if (to.path !== '/login' && !token) {
+    // 未登录用户访问其他页面 → 跳登录
     next('/login')
   } else {
     next()

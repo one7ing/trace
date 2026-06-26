@@ -42,23 +42,33 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
 
     // ===== 上传 =====
 
+    /**
+     * 知识库文档上传主流程。
+     * 1. 先往 knowledge_bases 表插入一条记录（用于前端展示），获取 kbId。
+     * 2. 将文档内容按语义分块，写入 vector_store 向量表（用于 RAG 检索）。
+     * 两个表通过 kbId 关联。
+     */
     @Override
     @Transactional
     public KnowledgeBase uploadFile(Long userId, MultipartFile file, String category) {
+        // 1. 提取文件名和文本内容
         String fileName = file.getOriginalFilename();
         String text = readFile(file);
-        String cat = (category != null && !category.isBlank()) ? category : "专业知识问答";
 
-        // 1. 先插入 knowledge_bases 展示行，获取 kbId
+        // 3. 先插入知识库元数据行，获得数据库自增主键 kbId
         KnowledgeBase kb = KnowledgeBase.builder()
-                .userId(userId).fileName(fileName).category(cat)
-                .content(text).createdAt(LocalDateTime.now())
+                .userId(userId)
+                .fileName(fileName)
+                .category(category)
+                .content(text)          // 全量文本，用于详情展示
+                .createdAt(LocalDateTime.now())
                 .build();
-        kbMapper.insert(kb);
+        kbMapper.insert(kb);  // MyBatis-Plus 插入后自动回填 kb.getId()
 
-        // 2. 分块 + 写入 vector_store（metadata 存 kbId 关联）
-        List<Document> docs = chunkToDocuments(text, userId, kb.getId(), cat);
-        addToVectorStore(docs);
+        // 4. 将长文本切分成多个语义块（每块约 500 token，重叠 100 token），
+        //    每个块带上 userId、kbId、category 等元数据，写入向量库（vector_store）
+        List<Document> docs = chunkToDocuments(text, userId, kb.getId(), category);
+        addToVectorStore(docs);  // 内部调用 embeddingModel 向量化，再批量写入 PgVector
 
         log.info("KB uploaded: userId={}, kbId={}, file={}, chunks={}", userId, kb.getId(), fileName, docs.size());
         return kb;
@@ -313,28 +323,50 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
         return sb.append("]").toString();
     }
 
+    /**
+     * 根据文件扩展名读取并解析文本内容。
+     * 支持 TXT、MD（直接读取）和 PDF（使用 iText 提取文本）。
+     */
     private String readFile(MultipartFile file) {
         try {
+            // 1. 获取原始文件名，用于判断格式
             String name = file.getOriginalFilename();
             if (name == null) throw new IllegalArgumentException("文件名为空");
             String ext = name.toLowerCase();
+
+            // 2. TXT 和 Markdown 文件：直接按 UTF-8 读取
             if (ext.endsWith(".txt") || ext.endsWith(".md"))
                 return new String(file.getBytes(), StandardCharsets.UTF_8);
+
+            // 3. PDF 文件：调用专门的 PDF 解析方法
             if (ext.endsWith(".pdf")) return readPdf(file.getBytes());
+
+            // 4. 其他格式暂不支持，抛出异常
             throw new IllegalArgumentException("不支持格式: " + ext);
-        } catch (RuntimeException e) { throw e; }
-        catch (Exception e) { throw new RuntimeException("读取文件失败", e); }
+        } catch (RuntimeException e) {
+            throw e;  // 业务异常直接抛出（如格式不支持）
+        } catch (Exception e) {
+            throw new RuntimeException("读取文件失败", e);  // 其他异常包装为运行时异常
+        }
     }
 
+    /**
+     * 使用 iText（lowagie 版本）解析 PDF 文件，提取所有页面的纯文本。
+     */
     private String readPdf(byte[] data) throws Exception {
+        // 创建 PDF 阅读器，从字节数组读取
         com.lowagie.text.pdf.PdfReader reader =
                 new com.lowagie.text.pdf.PdfReader(new java.io.ByteArrayInputStream(data));
+        // 创建文本提取器
         com.lowagie.text.pdf.parser.PdfTextExtractor extractor =
                 new com.lowagie.text.pdf.parser.PdfTextExtractor(reader);
         StringBuilder sb = new StringBuilder();
+
+        // 逐页提取文本，页与页之间用换行分隔
         for (int i = 1; i <= reader.getNumberOfPages(); i++)
             sb.append(extractor.getTextFromPage(i)).append("\n");
+
         reader.close();
-        return sb.toString().trim();
+        return sb.toString().trim();  // 去除首尾空白
     }
 }

@@ -61,4 +61,11 @@ public interface constant {
         String MEMORY_EXTRACT_EXCHANGE = "trace.memory.exchange";
         String MEMORY_EXTRACT_ROUTING_KEY = "trace.memory.extract";
     }
+
+    interface RateLimit {
+        String KEY_PREFIX = "rate:";
+        int DEFAULT_LIMIT = 10;
+        int DEFAULT_WINDOW_SECONDS = 60;
+        int CODE = 42900;
+    }
 }

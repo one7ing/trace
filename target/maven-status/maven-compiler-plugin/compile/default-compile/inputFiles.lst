@@ -82,6 +82,7 @@ C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\PracticeJudgme
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\PracticeServiceImpl.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\PracticeSseRegistry.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\QuestionBankServiceImpl.java
+C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\TokenServiceImpl.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\impl\WeeklyReportServiceImpl.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\KnowledgeBaseService.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\KnowledgeService.java
@@ -90,5 +91,6 @@ C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\PdfService.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\PlanService.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\PracticeService.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\QuestionBankService.java
+C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\TokenService.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\service\WeeklyReportService.java
 C:\Users\10031\Desktop\trace\src\main\java\com\trace\TraceApplication.java

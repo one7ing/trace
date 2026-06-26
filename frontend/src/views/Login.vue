@@ -133,7 +133,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
@@ -146,6 +146,13 @@ const loading = ref(false)
 const loginForm = reactive({ account:'', password:'' })
 const registerForm = reactive({ username:'', email:'', password:'' })
 const forgotForm = reactive({ email:'', newPassword:'' })
+
+// 已登录则自动跳转到首页
+onMounted(() => {
+  if (localStorage.getItem('trace-accessToken')) {
+    router.push('/dashboard')
+  }
+})
 
 /** 判断是否为邮箱格式 */
 function isEmail(s: string) { return s.includes('@') }

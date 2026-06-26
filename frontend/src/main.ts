@@ -24,4 +24,14 @@ const app = createApp(App)
 app.use(ElementPlus)
 app.use(createPinia())
 app.use(router)
+
+// ── 全局 Vue 错误处理：捕获未处理异常，防止白屏 ──
+app.config.errorHandler = (err, _instance, info) => {
+  console.error('[Global Error]', err, info)
+  // 动态导入 ElMessage 避免循环依赖
+  import('element-plus').then(({ ElMessage }) => {
+    ElMessage.error('页面出现异常，请刷新重试')
+  })
+}
+
 app.mount('#app')

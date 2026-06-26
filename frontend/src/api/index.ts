@@ -91,7 +91,7 @@ api.interceptors.response.use(
           isRefreshing = true
           try {
             const res: any = await refreshApi.post('/auth/refresh', { refreshToken })
-            const newAccessToken = res.data.accessToken
+            const newAccessToken = res.data.data.accessToken
             // 更新本地存储
             localStorage.setItem('trace-accessToken', newAccessToken)
             // 重放等待队列中的请求

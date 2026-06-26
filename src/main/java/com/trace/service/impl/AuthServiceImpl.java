@@ -67,7 +67,7 @@ public class AuthServiceImpl implements AuthService {
             user = userMapper.findByUsername(request.getUsername());
         }
         // 校验密码
-        if (user == null || !passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
+        if (user == null||!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
             throw new BadCredentialsException("用户名或密码错误");
         // 生成双Token
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getUsername());

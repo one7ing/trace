@@ -1,9 +1,12 @@
 package com.trace.config;
 
+import io.swagger.v3.oas.models.Components;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.info.Contact;
 import io.swagger.v3.oas.models.info.Info;
 import io.swagger.v3.oas.models.info.License;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -33,7 +36,7 @@ public class Knife4jConfig {
                                 - 成长仪表盘（评分/热力图/趋势）
                                 - 长期记忆（自动提取）
                                                                 
-                                **认证方式：** 登录后获取 Token，在请求头中添加 `Authorization: Bearer <token>`
+                                **认证方式：** 点击右上角 "Authorize" 按钮，粘贴登录返回的 accessToken
                                 """)
                         .version("1.0.0")
                         .contact(new Contact()
@@ -41,6 +44,14 @@ public class Knife4jConfig {
                                 .email("trace@example.com"))
                         .license(new License()
                                 .name("内部使用")
-                                .url("https://github.com")));
+                                .url("https://github.com")))
+                .addSecurityItem(new SecurityRequirement().addList("JWT"))
+                .components(new Components()
+                        .addSecuritySchemes("JWT",
+                                new SecurityScheme()
+                                        .type(SecurityScheme.Type.HTTP)
+                                        .scheme("bearer")
+                                        .bearerFormat("JWT")
+                                        .description("登录接口返回的 accessToken（不含 Bearer 前缀）")));
     }
 }

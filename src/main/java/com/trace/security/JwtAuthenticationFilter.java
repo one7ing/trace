@@ -76,9 +76,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
      *   2. 从 URL 参数 token（SSE EventSource 不支持自定义请求头时使用）
      */
     private String extractToken(HttpServletRequest request) {
-        // 方式一：从 Authorization 请求头提取
+        // 方式一：从 Authorization 请求头提取（大小写不敏感）
         String bearerToken = request.getHeader("Authorization");
-        if (StringUtils.hasText(bearerToken) && bearerToken.startsWith("Bearer ")) {
+        if (StringUtils.hasText(bearerToken) && bearerToken.toLowerCase().startsWith("bearer ")) {
             return bearerToken.substring(7);  // 去掉 "Bearer " 前缀
         }
         // 方式二：从 URL 参数提取（SSE 场景）

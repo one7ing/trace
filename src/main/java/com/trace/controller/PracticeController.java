@@ -5,6 +5,7 @@ import com.trace.dto.*;
 import com.trace.entity.PracticeQuestionDetail;
 import com.trace.entity.PracticeRecord;
 import com.trace.mapper.PracticeQuestionDetailMapper;
+import com.trace.security.RateLimit;
 import com.trace.service.PracticeService;
 import com.trace.service.QuestionBankService;
 import com.trace.service.impl.PracticeSseRegistry;
@@ -32,6 +33,7 @@ public class PracticeController {
     private final PracticeQuestionDetailMapper detailMapper;
 
     @Operation(summary = "开始刷题", description = "按方向从题库随机抽取指定数量的题目，返回 sessionId 和题目列表")
+    @RateLimit(key = "rate:practice")
     @PostMapping("/start")
     public ResponseEntity<ApiResponse<Map<String, Object>>> start(
             @AuthenticationPrincipal Long userId,
@@ -41,6 +43,7 @@ public class PracticeController {
     }
 
     @Operation(summary = "提交答案", description = "逐题模式提交单题答案，全部模式提交所有答案，全部答完后触发 AI 判题")
+    @RateLimit(key = "rate:practice")
     @PostMapping("/answer")
     public ResponseEntity<ApiResponse<Map<String, Object>>> answer(
             @Valid @RequestBody PracticeAnswerRequest req) {

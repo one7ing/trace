@@ -4,6 +4,7 @@ import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.trace.dto.ApiResponse;
 import com.trace.dto.PlanGenerateRequest;
 import com.trace.entity.StudyPlan;
+import com.trace.security.RateLimit;
 import com.trace.service.PlanService;
 import com.trace.service.impl.PlanSseRegistry;
 import io.swagger.v3.oas.annotations.Operation;
@@ -25,6 +26,7 @@ public class PlanController {
     private final PlanSseRegistry sseRegistry;
 
     @Operation(summary = "AI 生成计划")
+    @RateLimit(key = "rate:plan")
     @PostMapping("/generate")
     public ResponseEntity<ApiResponse<StudyPlan>> generate(
             @AuthenticationPrincipal Long userId, @Valid @RequestBody PlanGenerateRequest req) {

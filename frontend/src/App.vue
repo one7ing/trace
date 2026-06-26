@@ -8,13 +8,7 @@
       <!-- 顶部栏 -->
       <el-header class="top-header">
         <div class="header-left">
-          <svg width="28" height="28" viewBox="0 0 32 32" class="brand-logo">
-            <rect width="32" height="32" rx="8" fill="url(#logoGrad)"/>
-            <defs><linearGradient id="logoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#6C5CE7"/><stop offset="100%" stop-color="#8B7CF0"/>
-            </linearGradient></defs>
-            <text x="16" y="22" text-anchor="middle" fill="white" font-size="18" font-weight="700">T</text>
-          </svg>
+          <img src="/logo.png" width="28" height="28" class="brand-logo" alt="Trace" />
           <span class="header-brand">Trace</span>
           <!-- 邮箱胶囊下拉 -->
           <el-dropdown trigger="click" @command="handlePillCommand">
@@ -185,7 +179,7 @@ async function handlePillAvatarUpload(e: Event) {
 
     .header-left {
       display: flex; align-items: center; gap: 12px;
-      .brand-logo { flex-shrink: 0; }
+      .brand-logo { flex-shrink: 0; border-radius: 6px; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.18)); }
       .header-brand {
         font-family: 'Georgia', 'Palatino Linotype', 'Book Antiqua', serif;
         font-size: 18px; font-weight: 700; font-style: italic; letter-spacing: 2px;

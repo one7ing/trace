@@ -5,7 +5,10 @@ import lombok.*;
 
 import java.time.LocalDateTime;
 
-@Data @NoArgsConstructor @AllArgsConstructor @Builder
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
 @TableName("users")
 public class User {
     @TableId(type = IdType.AUTO)
