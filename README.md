@@ -20,7 +20,7 @@
 | 文档 | Knife4j + SpringDoc OpenAPI 2.7 |
 | 数据库迁移 | Flyway |
 
-项目亮点
+## 项目亮点
 多 Agent 协作架构：4 个独立 AI Agent（知识问答、计划生成、记忆提取、查询改写），通过 Spring AI + DashScope（Qwen）驱动，各司其职
 
 SSE 全链路流式响应：AI 对话、计划生成、刷题判题全部通过 Server-Sent Events 实时推送，避免长轮询，用户体验流畅
