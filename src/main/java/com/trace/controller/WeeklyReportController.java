@@ -12,7 +12,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @Tag(name = "周报生成", description = "周报列表、手动生成、PDF 下载")
-@RestController @RequestMapping("/api/weekly-report") @RequiredArgsConstructor
+@RestController
+@RequestMapping("/api/weekly-report")
+@RequiredArgsConstructor
 public class WeeklyReportController {
     private final WeeklyReportService reportService;
 
