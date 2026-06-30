@@ -94,4 +94,5 @@ public class AuthController {
         authService.resetPassword(email, newPassword);
         return ResponseEntity.ok(ApiResponse.success("密码已重置，请使用邮箱登录"));
     }
+
 }

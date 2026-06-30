@@ -31,8 +31,8 @@
           <div class="input-group">
             <!-- RAG 知识库选择 -->
             <div v-if="chatMode === 'rag'" class="rag-inline">
-              <el-select v-model="selectedKbTopic" placeholder="选择知识库" size="small" style="width:160px">
-                <el-option v-for="kb in kbList" :key="kb" :label="kb" :value="kb"/>
+              <el-select v-model="selectedKb" placeholder="选择知识库" size="small" style="width:180px" value-key="id">
+                <el-option v-for="kb in kbList" :key="kb.id" :label="`${kb.fileName} (${kb.category})`" :value="kb"/>
               </el-select>
             </div>
             <input
@@ -42,7 +42,7 @@
               :placeholder="inputPlaceholder"
               @keydown.enter="sendMessage"
             />
-            <button class="btn-send-welcome" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKbTopic)">
+            <button class="btn-send-welcome" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKb)">
               <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
                 <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
               </svg>
@@ -68,8 +68,8 @@
           </button>
         </div>
         <div v-if="chatMode === 'rag'" class="rag-inline">
-          <el-select v-model="selectedKbTopic" placeholder="选择知识库" size="small" style="width:160px">
-            <el-option v-for="kb in kbList" :key="kb" :label="kb" :value="kb"/>
+          <el-select v-model="selectedKb" placeholder="选择知识库" size="small" style="width:180px" value-key="id">
+            <el-option v-for="kb in kbList" :key="kb.id" :label="`${kb.fileName} (${kb.category})`" :value="kb"/>
           </el-select>
         </div>
       </div>
@@ -114,7 +114,7 @@
           </button>
         </template>
         <template v-else>
-          <button class="btn-send-float" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKbTopic)">
+          <button class="btn-send-float" @click="sendMessage" :disabled="!inputText.trim() || (chatMode === 'rag' && !selectedKb)">
             <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="16" height="16">
               <line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/>
             </svg>
@@ -137,8 +137,8 @@ const authStore = useAuthStore()
 
 // 模式
 const chatMode = ref<'direct'|'web'|'rag'>('direct')
-const selectedKbTopic = ref('')
-const kbList = ref<string[]>([])
+const selectedKb = ref<{id:number; fileName:string; category:string} | null>(null)
+const kbList = ref<{id:number; fileName:string; category:string}[]>([])
 
 const modeLabel = computed(() => {
   if (chatMode.value === 'web') return '联网搜索 · 实时获取最新信息'
@@ -147,7 +147,7 @@ const modeLabel = computed(() => {
 })
 const inputPlaceholder = computed(() => {
   if (chatMode.value === 'web') return '联网搜索模式，输入问题...'
-  if (chatMode.value === 'rag') return selectedKbTopic.value ? `向「${selectedKbTopic.value}」提问...` : '请先选择知识库'
+  if (chatMode.value === 'rag') return selectedKb.value ? `向「${selectedKb.value.fileName}」提问...` : '请先选择知识库'
   return '输入你的问题，Enter 发送...'
 })
 
@@ -166,12 +166,16 @@ const chatAreaRef = ref<HTMLElement>()
 const inputRef = ref<HTMLInputElement>()
 let abortController: AbortController | null = null
 
-// ── 加载知识库列表 ──
+// 加载知识库列表
 async function fetchKbList() {
   try {
     const res: any = await api.get('/knowledge-base/items', { params: { page: 0, size: 50 } })
     const records = res.data?.records || []
-    kbList.value = records.map((r: any) => r.fileName)
+    kbList.value = records.map((r: any) => ({
+      id: r.id,
+      fileName: r.fileName,
+      category: r.category || '专业知识问答'
+    }))
   } catch {}
 }
 
@@ -179,7 +183,7 @@ async function fetchKbList() {
 async function sendMessage() {
   const text = inputText.value.trim()
   if (!text || streaming.value) return
-  if (chatMode.value === 'rag' && !selectedKbTopic.value) {
+  if (chatMode.value === 'rag' && !selectedKb.value) {
     ElMessage.warning('请先选择知识库')
     return
   }
@@ -191,7 +195,11 @@ async function sendMessage() {
 
   try {
     const body: any = { message: text, mode: chatMode.value }
-    if (chatMode.value === 'rag') body.knowledgeBaseTopic = selectedKbTopic.value
+    if (chatMode.value === 'rag' && selectedKb.value) {
+      body.knowledgeBaseTopic = selectedKb.value.fileName
+      body.knowledgeBaseId = selectedKb.value.id
+      body.knowledgeBaseCategory = selectedKb.value.category
+    }
 
     // 发送流式请求（使用fetch绕过axios）
     let resp = await fetch('/api/knowledge/chat', {

@@ -12,6 +12,7 @@ import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -41,20 +42,7 @@ public class AuthServiceImpl implements AuthService {
                 .passwordHash(passwordEncoder.encode(request.getPassword()))
                 .email(request.getEmail()).build();
         userMapper.insert(user);
-        // 生成双Token
-        String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getUsername());
-        String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
-        // refreshToken存入Redis
-        tokenService.storeRefreshToken(user.getId(), refreshToken);
-        // 构建返回数据
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("userId", user.getId());
-        result.put("username", user.getUsername());
-        result.put("email", user.getEmail());
-        result.put("avatarUrl", user.getAvatarUrl());
-        result.put("accessToken", accessToken);
-        result.put("refreshToken", refreshToken);
-        return result;
+        return CreateDoubleToken(user);
     }
 
     @Override
@@ -69,6 +57,9 @@ public class AuthServiceImpl implements AuthService {
         // 校验密码
         if (user == null||!passwordEncoder.matches(request.getPassword(), user.getPasswordHash()))
             throw new BadCredentialsException("用户名或密码错误");
+        return CreateDoubleToken(user);
+    }
+    private Map<String, Object> CreateDoubleToken(User user){
         // 生成双Token
         String accessToken = jwtUtil.generateAccessToken(user.getId(), user.getUsername());
         String refreshToken = jwtUtil.generateRefreshToken(user.getId(), user.getUsername());
@@ -130,4 +121,7 @@ public class AuthServiceImpl implements AuthService {
         if (u == null) throw new IllegalArgumentException("用户不存在");
         return u;
     }
+
+
+
 }

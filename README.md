@@ -2,6 +2,17 @@
 
 基于 AI 的个人成长管理平台，支持学习计划生成、刷题练习、每日打卡、成长仪表盘、知识库管理、周报自动生成等功能。
 
+## 项目亮点
+
+- **多 Agent 协作架构**：4 个独立 AI Agent（知识问答、计划生成、记忆提取、查询改写），通过 Spring AI + DashScope（Qwen）驱动，各司其职
+- **SSE 全链路流式响应**：AI 对话、计划生成、刷题判题全部通过 Server-Sent Events 实时推送，避免长轮询，用户体验流畅
+- **RabbitMQ 异步解耦**：耗时的 AI 任务（计划生成、记忆提取、判题）全部入队异步处理，接口秒级响应，消费者处理完成后通过 SSE 推送给前端
+- **Redis ZSET 滑动窗口限流**：自研 `@RateLimit` 注解 + Lua 原子脚本，对 AI 接口做用户级精准限流，防止 API 费用失控
+- **RAG 知识库检索增强**：基于 PgVector 向量存储 + Spring AI Embedding，用中文本地知识库增强 AI 回答质量
+- **虚拟线程全开**：Spring Boot 3.4 + Java 21 虚拟线程，Tomcat/Redis/RabbitMQ 全线异步，轻松承载高并发
+- **JWT 双 Token 机制**：accessToken（30分钟）+ refreshToken（7天），Redis 存储长 Token，兼顾安全与体验
+- **一键 Docker 部署**：`docker compose up -d` 启动 PostgreSQL(PgVector) + MinIO + RabbitMQ，附带完整 JMeter 压测计划
+
 ## 技术栈
 
 | 层级 | 技术 |

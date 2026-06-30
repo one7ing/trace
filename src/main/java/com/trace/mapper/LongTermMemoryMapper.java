@@ -4,8 +4,8 @@ import com.baomidou.mybatisplus.core.mapper.BaseMapper;
 import com.trace.entity.LongTermMemory;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Mapper
 public interface LongTermMemoryMapper extends BaseMapper<LongTermMemory> {
@@ -14,14 +14,11 @@ public interface LongTermMemoryMapper extends BaseMapper<LongTermMemory> {
     int countByUserId(@Param("userId") Long userId);
     void deleteOldestByUserId(@Param("userId") Long userId, @Param("count") int count);
 
-    List<Map<String, Object>> findSimilarMemory(@Param("userId") Long userId,
+    List<LinkedHashMap<String, Object>> findSimilarMemory(@Param("userId") Long userId,
                                                  @Param("queryVec") String queryVec,
                                                  @Param("threshold") double threshold);
     void updateContentAndEmbedding(@Param("id") Long id, @Param("content") String content, @Param("embedding") String embedding);
-    List<Long> findLeastRelevantIds(@Param("userId") Long userId, @Param("count") int count);
     List<LongTermMemory> searchByVector(@Param("userId") Long userId, @Param("queryVec") String queryVec, @Param("limit") int limit);
     void insertembding(@Param("userId") Long userId,@Param("content") String content,@Param("sourceType") String sourceType,@Param("embedding") String embedding);
 
-    @org.apache.ibatis.annotations.Delete("DELETE FROM long_term_memories WHERE user_id = #{userId}")
-    int deleteAllByUserId(@Param("userId") Long userId);
 }

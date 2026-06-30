@@ -33,7 +33,13 @@ public class MemoryExtractAgent {
     public int extractAndSave(Long userId, String sourceText, String sourceType) {
         if (sourceText == null || sourceText.isBlank()) return 0;
         try {
-            String result = chatClientBuilder.build().prompt().system(cachedPrompt).user(sourceText).call().content();
+            String result = chatClientBuilder
+                    .build()
+                    .prompt()
+                    .system(cachedPrompt)
+                    .user(sourceText)
+                    .call()
+                    .content();
             if (result == null || result.contains("无")) { log.debug("无可记录内容"); return 0; }
             List<String> items = Arrays.stream(result.split("\n")).map(String::trim)
                     .filter(line -> line.startsWith("- ")).map(line -> line.substring(2).trim())

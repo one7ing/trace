@@ -15,10 +15,7 @@ public interface MemoryService {
     /** 获取最近 limit 条短期对话上下文 */
     List<Map<String, String>> getChatContext(Long userId, int limit);
 
-    void saveMemory(Long userId, String content, String sourceType);
     void saveMemory(Long userId, String content, String sourceType, String embedding);
     List<LongTermMemory> getRecentMemories(Long userId, int limit);
-    int countMemories(Long userId);
-    boolean isDuplicate(Long userId, String content);
     List<LongTermMemory> searchSimilarMemories(Long userId, String queryText, int limit);
 }

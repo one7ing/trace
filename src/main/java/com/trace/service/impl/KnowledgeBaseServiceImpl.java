@@ -164,7 +164,7 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
     // ===== 检索 =====
 
     @Override
-    public List<Document> hybridSearch(Long userId, String query, String category, int topK) {
+    public List<Document> hybridSearch(Long userId, String query, String category, int topK, Long kbId) {
         if (embeddingModel == null) return List.of();
         float[] emb = embeddingModel.embed(query);
         String vecStr = vectorToString(emb);
@@ -172,15 +172,15 @@ public class KnowledgeBaseServiceImpl implements KnowledgeBaseService {
                 .replaceAll("(^\\s*\\|\\s*|\\s*\\|\\s*$)", "").trim();
         if (tsQuery.isEmpty()) tsQuery = query.replaceAll("\\s+", " & ");
         return rowsToDocuments(
-                kbMapper.hybridSearch(vecStr, tsQuery, userId, category, topK));
+                kbMapper.hybridSearch(vecStr, tsQuery, userId, category, topK, kbId));
     }
 
     @Override
-    public List<Document> semanticSearch(Long userId, String query, String category) {
+    public List<Document> semanticSearch(Long userId, String query, String category, Long kbId) {
         if (embeddingModel == null) return List.of();
         float[] emb = embeddingModel.embed(query);
         return rowsToDocuments(
-                kbMapper.semanticSearch(vectorToString(emb), userId, category, 0.4, 4));
+                kbMapper.semanticSearch(vectorToString(emb), userId, category, 0.4, 4, kbId));
     }
 
     private List<Document> rowsToDocuments(List<LinkedHashMap<String, Object>> rows) {

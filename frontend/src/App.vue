@@ -67,21 +67,45 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
 import SideNav from '@/components/SideNav.vue'
 import { useAuthStore } from '@/stores/auth'
 import api from '@/api'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
+import { usePlanStore } from '@/stores/plan'
 
 const authStore = useAuthStore()
 const router = useRouter()
+const planStore = usePlanStore()
 
 // 深色模式
 onMounted(() => {
   if (localStorage.getItem('trace-dark') === '1') {
     document.documentElement.classList.add('dark')
   }
+  // 初始化计划通知 Store（检查是否有进行中的计划，自动建立 SSE）
+  planStore.init()
+})
+
+// 监听计划完成 → 全局弹窗通知
+watch(() => planStore.newPlan, (plan) => {
+  if (!plan) return
+  const isFailed = plan.planContent?.startsWith('生成失败')
+  ElNotification({
+    title: isFailed ? '计划生成失败' : '计划生成完毕',
+    message: isFailed
+      ? `「${plan.goal || '学习计划'}」生成失败，请重试`
+      : `「${plan.goal || '你的学习计划'}」已生成，可以查看和下载 PDF 了。`,
+    type: isFailed ? 'error' : 'success',
+    duration: 6000,
+  })
+  // 清除标记，避免重复弹窗
+  planStore.clearNewPlan()
+})
+
+onUnmounted(() => {
+  planStore.closeSse()
 })
 
 // ── 头像 ──

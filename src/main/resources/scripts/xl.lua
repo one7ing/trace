@@ -2,8 +2,10 @@ local key = KEYS[1]
 local window = tonumber(ARGV[1])
 local limit = tonumber(ARGV[2])
 local now = tonumber(ARGV[3])
+-- 窗口起点
 local cutoff = now - window * 1000
 redis.call('ZREMRANGEBYSCORE', key, 0, cutoff)
+
 local count = redis.call('ZCARD', key)
 if count >= limit then
     return 0

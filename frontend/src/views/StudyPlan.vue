@@ -36,24 +36,24 @@
       <div class="input-actions">
         <el-button
           v-if="mode === 'ai'"
-          type="primary" @click="generatePlan" :loading="generating" :disabled="!goal.trim() || generating">
+          type="primary" @click="generatePlan" :loading="planStore.generating" :disabled="!goal.trim() || planStore.generating">
           AI 生成计划
         </el-button>
         <el-button
           v-else
-          type="success" @click="createPlan" :loading="generating" :disabled="!goal.trim() || !planDuration || generating">
+          type="success" @click="createPlan" :loading="planStore.generating" :disabled="!goal.trim() || !planDuration || planStore.generating">
           创建计划
         </el-button>
       </div>
     </el-card>
 
     <!-- 生成中的计划 -->
-    <el-card v-if="generatingPlan" shadow="hover" class="plan-card generating-card">
+    <el-card v-if="planStore.generatingPlan" shadow="hover" class="plan-card generating-card">
       <template #header>
         <div class="plan-card-header">
           <span>
             <svg viewBox="0 0 24 24" fill="none" stroke="#7B61FF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:5px"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            {{ generatingPlan.goal }}
+            {{ planStore.generatingPlan.goal }}
           </span>
           <el-tag type="warning" effect="dark">
             <el-icon class="is-loading"><Loading /></el-icon> 生成中...
@@ -68,22 +68,22 @@
     </el-card>
 
     <!-- 刚完成的计划 -->
-    <el-card v-if="newPlan" shadow="hover" class="plan-card new-plan">
+    <el-card v-if="planStore.newPlan" shadow="hover" class="plan-card new-plan">
       <template #header>
         <div class="plan-card-header">
           <span>
             <svg viewBox="0 0 24 24" fill="none" stroke="#67c23a" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" width="16" height="16" style="vertical-align:-3px;margin-right:5px"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
-            {{ newPlan.goal }}
+            {{ planStore.newPlan.goal }}
           </span>
           <div>
             <el-tag type="success" size="small" style="margin-right: 8px;">已完成</el-tag>
-            <el-button text type="primary" size="small" @click="downloadPdf(newPlan.id)">
+            <el-button text type="primary" size="small" @click="downloadPdf(planStore.newPlan.id)">
               下载 PDF
             </el-button>
           </div>
         </div>
       </template>
-      <MarkdownRenderer :content="newPlan.planContent || ''" />
+      <MarkdownRenderer :content="planStore.newPlan.planContent || ''" />
     </el-card>
 
     <!-- 打卡 & 进度 -->
@@ -184,20 +184,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import api from '@/api'
 import MarkdownRenderer from '@/components/MarkdownRenderer.vue'
-import { ElMessage, ElNotification } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
+import { usePlanStore } from '@/stores/plan'
+
+const planStore = usePlanStore()
 
 const goal = ref('')
 const planDuration = ref<number>()
 const manualContent = ref('')
 const mode = ref<'ai' | 'manual'>('ai')
-const generating = ref(false)
 const loading = ref(false)
-const generatingPlan = ref<any>(null)
-const newPlan = ref<any>(null)
 const completedPlans = ref<any[]>([])
 
 // 打卡
@@ -207,10 +207,6 @@ const checkinProgress = ref({ checked: 0, percent: 0 })
 const weekStatus = ref<any[]>([])
 const checkinHover = ref(false)
 const checkinDone = ref(false)
-
-// SSE 连接追踪 —— 用于组件卸载时清理 + 返回页面时重连
-const activeEventSource = ref<EventSource | null>(null)
-const sseTimeoutHandle = ref<ReturnType<typeof setTimeout> | null>(null)
 
 // 详情弹窗
 const detailVisible = ref(false)
@@ -250,24 +246,23 @@ watch(completedPlans, (plans) => {
 
 async function generatePlan() {
   if (!goal.value.trim()) return
-  generating.value = true
+  planStore.generating = true
   try {
     const body: any = { goal: goal.value }
     if (planDuration.value && planDuration.value > 0) body.totalDuration = planDuration.value
     const res: any = await api.post('/plan/generate', body)
     const plan = res.data
-    generatingPlan.value = plan
     goal.value = ''
     planDuration.value = undefined
     ElMessage.info('计划生成任务已提交，预计需要 1-3 分钟...')
-    startStreaming(plan.id, plan.goal)
+    // 交给 Store 统一管理 SSE（App.vue 生命周期）
+    planStore.setGenerating({ id: plan.id, goal: plan.goal })
   } catch {}
-  // generating stays true until SSE completes
 }
 
 async function createPlan() {
   if (!goal.value.trim() || !planDuration.value) return
-  generating.value = true
+  planStore.generating = true
   try {
     const res: any = await api.post('/plan/create', {
       goal: goal.value, totalDuration: planDuration.value,
@@ -279,77 +274,7 @@ async function createPlan() {
     manualContent.value = ''
     fetchPlans()
   } catch { ElMessage.error('创建失败') }
-  generating.value = false
-}
-
-function startStreaming(planId: number, goal: string) {
-  // 关闭已有连接（避免重复连接）
-  closeSse()
-
-  const token = localStorage.getItem('trace-accessToken') || ''
-  const es = new EventSource(`/api/plan/${planId}/stream?token=${encodeURIComponent(token)}`)
-  activeEventSource.value = es
-
-  // 5 分钟超时（匹配服务端 SseEmitter）
-  const timeout = setTimeout(() => {
-    es.close()
-    activeEventSource.value = null
-    sseTimeoutHandle.value = null
-    generatingPlan.value = null
-    generating.value = false
-    ElMessage.warning('计划生成超时，可能仍在后台处理中，请稍后刷新页面查看')
-  }, 300000)
-  sseTimeoutHandle.value = timeout
-
-  es.addEventListener('completed', (e: MessageEvent) => {
-    clearTimeout(timeout)
-    es.close()
-    activeEventSource.value = null
-    sseTimeoutHandle.value = null
-    generatingPlan.value = null
-    generating.value = false
-    const d = JSON.parse(e.data)
-
-    if (d.planContent && d.planContent.startsWith('生成失败')) {
-      ElMessage.error('计划生成失败，请重试')
-      return
-    }
-
-    newPlan.value = {
-      id: d.planId,
-      goal: d.goal || goal,
-      planContent: d.planContent || '',
-      planUrl: d.planUrl || '',
-    }
-    ElNotification({
-      title: '计划生成完毕',
-      message: '你的学习计划已生成，可以查看和下载 PDF 了。',
-      type: 'success',
-      duration: 5000,
-    })
-  })
-
-  es.onerror = () => {
-    clearTimeout(timeout)
-    es.close()
-    activeEventSource.value = null
-    sseTimeoutHandle.value = null
-    generatingPlan.value = null
-    generating.value = false
-    ElMessage.warning('计划生成连接断开，可能仍在后台处理中，请稍后刷新页面查看')
-  }
-}
-
-/** 关闭当前 SSE 连接并清理 */
-function closeSse() {
-  if (activeEventSource.value) {
-    activeEventSource.value.close()
-    activeEventSource.value = null
-  }
-  if (sseTimeoutHandle.value) {
-    clearTimeout(sseTimeoutHandle.value)
-    sseTimeoutHandle.value = null
-  }
+  planStore.generating = false
 }
 
 async function fetchPlans() {
@@ -363,17 +288,7 @@ async function fetchPlans() {
       (p: any) => p.planContent !== '正在生成中...'
     )
 
-    // 进行中的计划：内容仍是占位文本
-    const inProgress = allPlans.filter(
-      (p: any) => p.planContent === '正在生成中...'
-    )
-
-    // 如果没有活跃的 SSE 连接且有进行中的计划，重新建立 SSE
-    if (inProgress.length > 0 && !activeEventSource.value) {
-      const plan = inProgress[0] // 最新提交的计划排在最前面
-      generatingPlan.value = plan
-      startStreaming(plan.id, plan.goal)
-    }
+    // 进行中的计划：内容仍是占位文本（SSE 由 Store 统一管理）
   } catch { /* handled */ }
   loading.value = false
 }
@@ -475,18 +390,12 @@ async function fetchWeekStatus(planId?: number | null) {
 }
 
 onMounted(() => {
-  generatingPlan.value = null
-  newPlan.value = null
   fetchPlans().then(() => {
     if (activeCheckinPlan.value) {
       fetchCheckinProgress(activeCheckinPlan.value.id)
     }
     fetchWeekStatus(activeCheckinPlan.value?.id)
   })
-})
-
-onUnmounted(() => {
-  closeSse()
 })
 </script>
 

@@ -31,7 +31,7 @@ public class MemoryServiceImpl implements MemoryService {
     private final ObjectMapper objectMapper;
     private final EmbeddingModel embeddingModel;
 
-    private static final double SIMILARITY_THRESHOLD = 0.75;
+    private static final double SIMILARITY_THRESHOLD = 0.70;
 
     public MemoryServiceImpl(StringRedisTemplate stringRedisTemplate,
                               ChatHistoryMapper chatHistoryMapper,
@@ -126,40 +126,39 @@ public class MemoryServiceImpl implements MemoryService {
         }
     }
 
-    @Override
-    @Transactional
-    public void saveMemory(Long userId, String content, String sourceType) {
-        saveMemory(userId, content, sourceType, null);
-    }
 
     @Override
     @Transactional
     public void saveMemory(Long userId, String content, String sourceType, String embedding) {
+        // 空内容直接跳过
         if (content == null || content.isBlank()) return;
-        if (embedding != null) {
-            List<Map<String, Object>> similar = memoryMapper.findSimilarMemory(userId, embedding, SIMILARITY_THRESHOLD);
-            if (similar != null && !similar.isEmpty()) {
-                Map<String, Object> match = similar.getFirst();
-                Long existingId = ((Number) match.get("id")).longValue();
-                double sim = ((Number) match.get("similarity")).doubleValue();
-                log.info("长期记忆合并: userId={}, 相似度={}, 旧记录ID={}", userId, String.format("%.3f", sim), existingId);
-                memoryMapper.updateContentAndEmbedding(existingId, content, embedding);
-                return;
-            }
-        } else {
-            if (isDuplicate(userId, content)) { log.debug("重复内容已跳过"); return; }
+            // --- 向量去重：用向量相似度判断是否和已有记忆重复 ---
+            // 调用 Mapper，在 long_term_memories 表里搜索最相似的已有记忆
+        var similar = memoryMapper.findSimilarMemory(userId, embedding, SIMILARITY_THRESHOLD);
+
+        if (similar != null && !similar.isEmpty()) {
+            // 如果找到相似度 > 阈值的记录，说明是同一件事的更新
+            Map<String, Object> match = similar.getFirst();
+            Long existingId = ((Number) match.get("id")).longValue();
+            double sim = ((Number) match.get("similarity")).doubleValue();
+
+            log.info("长期记忆合并: userId={}, 相似度={}, 旧记录ID={}",
+                    userId, String.format("%.3f", sim), existingId);
+
+            // 不新增记录，而是更新旧记录的 content 和 embedding
+            memoryMapper.updateContentAndEmbedding(existingId, content, embedding);
+            return;  // 已经更新，不需要继续往下走
         }
-        memoryMapper.insertembding(userId,content,sourceType,embedding);
+
+        // ========== 第二步：插入新记忆 ==========
+        memoryMapper.insertembding(userId, content, sourceType, embedding);
+
+        // ========== 第三步：容量控制（超出上限直接淘汰最早记录） ==========
         int currentCount = memoryMapper.countByUserId(userId);
         if (currentCount > MAX_MEMORIES) {
             int excess = currentCount - MAX_MEMORIES;
-            List<Long> leastRelevant = memoryMapper.findLeastRelevantIds(userId, excess);
-            if (leastRelevant != null && !leastRelevant.isEmpty()) {
-                memoryMapper.deleteBatchIds(leastRelevant);
-                log.info("已淘汰{}条低相关度长期记忆: userId={}", leastRelevant.size(), userId);
-            } else {
-                memoryMapper.deleteOldestByUserId(userId, excess);
-            }
+            memoryMapper.deleteOldestByUserId(userId, excess);
+            log.info("已淘汰{}条最早长期记忆: userId={}", excess, userId);
         }
     }
 
@@ -168,21 +167,14 @@ public class MemoryServiceImpl implements MemoryService {
         return memoryMapper.findRecentByUserId(userId, limit);
     }
 
-    @Override
-    public int countMemories(Long userId) {
-        return memoryMapper.countByUserId(userId);
-    }
 
-    @Override
-    public boolean isDuplicate(Long userId, String content) {
-        if (content == null || content.isBlank()) return true;
-        List<LongTermMemory> recent = memoryMapper.findRecentByUserId(userId, 30);
-        String trimmed = content.trim();
-        for (LongTermMemory m : recent)
-            if (m.getContent() != null && (m.getContent().contains(trimmed) || trimmed.contains(m.getContent()))) return true;
-        return false;
-    }
-
+    /**
+     * 用于长期记忆注入
+     * @param userId
+     * @param queryText
+     * @param limit
+     * @return
+     */
     @Override
     public List<LongTermMemory> searchSimilarMemories(Long userId, String queryText, int limit) {
         if (queryText == null || queryText.isBlank())

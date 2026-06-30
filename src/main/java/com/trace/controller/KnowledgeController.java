@@ -34,7 +34,10 @@ public class KnowledgeController {
                              @Valid @RequestBody ChatRequest request) {
         String mode = request.getMode() != null ? request.getMode() : "direct";
         return knowledgeAgent.handleStreamWithMode(
-                request.getMessage(), userId, mode, request.getKnowledgeBaseTopic());
+                request.getMessage(), userId, mode,
+                request.getKnowledgeBaseTopic(),
+                request.getKnowledgeBaseId(),
+                request.getKnowledgeBaseCategory());
     }
 
     @Operation(summary = "停止回答", description = "取消当前用户正在进行的 AI 流式回答")

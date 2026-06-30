@@ -26,7 +26,8 @@ public interface KnowledgeBaseMapper extends BaseMapper<KnowledgeBase> {
             @Param("tsQuery") String tsQuery,
             @Param("userId") Long userId,
             @Param("category") String category,
-            @Param("topK") int topK);
+            @Param("topK") int topK,
+            @Param("kbId") Long kbId);
 
     /** 语义检索 vector_store（闲聊用）：cosine >= threshold，topK */
     List<java.util.LinkedHashMap<String, Object>> semanticSearch(
@@ -34,7 +35,8 @@ public interface KnowledgeBaseMapper extends BaseMapper<KnowledgeBase> {
             @Param("userId") Long userId,
             @Param("category") String category,
             @Param("threshold") double threshold,
-            @Param("topK") int topK);
+            @Param("topK") int topK,
+            @Param("kbId") Long kbId);
 
     /** 写入 vector_store */
     void insertVectorStore(@Param("id") String id,

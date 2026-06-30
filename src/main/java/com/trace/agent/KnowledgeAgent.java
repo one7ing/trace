@@ -52,14 +52,15 @@ public class KnowledgeAgent extends AbstractAgent {
      * 根据前端传入的 mode 分流处理。
      */
     public Flux<String> handleStreamWithMode(String userInput, Long userId,
-                                              String mode, String knowledgeBaseTopic) {
+                                              String mode, String knowledgeBaseTopic,
+                                              Long kbId, String kbCategory) {
         // 联网搜索模式：-直接发给 LLM，不带上下文和历史
         if ("web".equals(mode)) {
             return handleWebSearch(userInput, userId);
         }
         // RAG 知识库模式：检索指定知识库后回答
         if ("rag".equals(mode)) {
-            return handleRagSearch(userInput, userId, knowledgeBaseTopic);
+            return handleRagSearch(userInput, userId, knowledgeBaseTopic, kbId, kbCategory);
         }
         // 默认直接对话模式
         return handleDirect(userInput, userId);
@@ -77,8 +78,10 @@ public class KnowledgeAgent extends AbstractAgent {
         AtomicReference<StringBuilder> acc = new AtomicReference<>(new StringBuilder());
 
         return chatClientBuilder.build().prompt()
-                .system(systemPrompt).user(rewritten)
-                .stream().content()
+                .system(systemPrompt)
+                .user(rewritten)
+                .stream()
+                .content()
                 .takeUntil(token -> stringRedisTemplate.opsForValue()
                         .get(cancelKey(userId)) != null)
                 .doOnNext(s -> acc.get().append(s))
@@ -87,28 +90,17 @@ public class KnowledgeAgent extends AbstractAgent {
                 .doOnError(e -> log.error("KnowledgeAgent联网模式出错: userId={}", userId, e));
     }
 
-    /** RAG 知识库：按分类选择检索方式 → 有则回答，无则直接告知 */
-    private Flux<String> handleRagSearch(String userInput, Long userId, String kbTopic) {
+    /** RAG 知识库：前端传入 kbId + kbCategory，精准检索 */
+    private Flux<String> handleRagSearch(String userInput, Long userId, String kbTopic,
+                                          Long kbId, String kbCategory) {
         String rewritten = queryRewriteAgent.rewrite(userId, userInput, List.of());
 
-        // 查出该知识库的 category
-        List<KnowledgeBase> items = kbService.listItems(userId, "", 0, 100).getRecords();
-        String category = "专业知识问答";
-        for (KnowledgeBase kb : items) {
-            if (kb.getFileName().equals(kbTopic)) {
-                category = kb.getCategory() != null ? kb.getCategory() : category;
-                break;
-            }
-        }
-
         // 按分类选择检索方式
-        List<org.springframework.ai.document.Document> docs;
-        if ("闲聊问答".equals(category)) {
-            // 闲聊：语义检索 topK=4 threshold=0.6
-            docs = kbService.semanticSearch(userId, rewritten, category);
+        List<Document> docs;
+        if ("闲聊问答".equals(kbCategory)) {
+            docs = kbService.semanticSearch(userId, rewritten, kbCategory, kbId);
         } else {
-            // 专业：混合检索
-            docs = kbService.hybridSearch(userId, rewritten, category, 4);
+            docs = kbService.hybridSearch(userId, rewritten, kbCategory, 4, kbId);
         }
 
         // 无结果：直接告知用户
@@ -183,7 +175,7 @@ public class KnowledgeAgent extends AbstractAgent {
         triggerMemoryExtractIfNeeded(userId);
     }
 
-    /** 异步触发记忆提取 */
+    /** 异步触发记忆提取 **/
     private void triggerMemoryExtractIfNeeded(Long userId) {
         try {
             String key = LAST_EXTRACTED_KEY_PREFIX + userId;

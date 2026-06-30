@@ -17,6 +17,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Map;
 
 @Component
@@ -54,12 +55,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 SecurityContextHolder.getContext().setAuthentication(authentication);
             } catch (ExpiredJwtException e) {
                 // Token过期，返回特定错误码供前端拦截器识别
-                writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                writeErrorResponse(response,
                         constant.Token.CODE_ACCESS_EXPIRED, "access token expired");
                 return;
             } catch (Exception e) {
                 // Token无效（签名错误、格式错误等）
-                writeErrorResponse(response, HttpServletResponse.SC_UNAUTHORIZED,
+                writeErrorResponse(response,
                         40100, "invalid token");
                 return;
             }
@@ -90,11 +91,11 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     }
 
     /** 向客户端写入JSON格式的错误响应 */
-    private void writeErrorResponse(HttpServletResponse response, int status, int code, String message) throws IOException {
-        response.setStatus(status);
+    private void writeErrorResponse(HttpServletResponse response, int code, String message) throws IOException {
+        response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         response.setContentType("application/json;charset=UTF-8");
         // 使用HashMap替代Map.of，因为Map.of不接受null值
-        Map<String, Object> body = new java.util.HashMap<>();
+        Map<String, Object> body = new HashMap<>();
         body.put("code", code);
         body.put("message", message);
         body.put("data", null);

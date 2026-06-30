@@ -17,7 +17,7 @@
 
     <!-- ===== vector_store 检索 ===== -->
 
-    <!-- 混合检索：向量(0.7) + 全文(0.3)，过滤 userId 和 category -->
+    <!-- 混合检索：向量(0.7) + 全文(0.3)，过滤 userId、category 和 kbId -->
     <select id="hybridSearch" resultType="java.util.LinkedHashMap">
         SELECT id, content, metadata,
                (1 - (embedding &lt;=&gt; #{queryVec}::vector)) * 0.7
@@ -27,6 +27,9 @@
         WHERE (1 - (embedding &lt;=&gt; #{queryVec}::vector)) >= 0.6
           AND metadata ->> 'userId' = #{userId}::text
           AND metadata ->> 'category' = #{category}
+          <if test="kbId != null">
+          AND metadata ->> 'kbId' = #{kbId}::text
+          </if>
         ORDER BY hybrid_score DESC
         LIMIT #{topK}
     </select>
@@ -39,6 +42,9 @@
         WHERE (1 - (embedding &lt;=&gt; #{queryVec}::vector)) >= #{threshold}
           AND metadata ->> 'userId' = #{userId}::text
           AND metadata ->> 'category' = #{category}
+          <if test="kbId != null">
+          AND metadata ->> 'kbId' = #{kbId}::text
+          </if>
         ORDER BY similarity DESC
         LIMIT #{topK}
     </select>

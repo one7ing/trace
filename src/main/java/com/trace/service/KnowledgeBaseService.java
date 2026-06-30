@@ -35,8 +35,8 @@ public interface KnowledgeBaseService {
     // ===== 检索 =====
 
     /** 混合检索 vector_store（专业知识用） */
-    List<Document> hybridSearch(Long userId, String query, String category, int topK);
+    List<Document> hybridSearch(Long userId, String query, String category, int topK, Long kbId);
 
     /** 语义检索 vector_store（闲聊用）：topK=4, threshold=0.6 */
-    List<Document> semanticSearch(Long userId, String query, String category);
+    List<Document> semanticSearch(Long userId, String query, String category, Long kbId);
 }

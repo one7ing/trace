@@ -1,2 +1,0 @@
--- V10: 计划来源字段
-ALTER TABLE study_plans ADD COLUMN IF NOT EXISTS source VARCHAR(10) DEFAULT 'ai';

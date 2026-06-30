@@ -20,12 +20,10 @@ import java.util.Map;
 public class QueryRewriteAgent {
     private String cachedPrompt;
     private final ChatClient.Builder chatClientBuilder;
-    private final MemoryService memoryService;
 
     public QueryRewriteAgent(ChatClient.Builder chatClientBuilder,
                              MemoryService memoryService) {
         this.chatClientBuilder = chatClientBuilder;
-        this.memoryService = memoryService;
     }
 
     /**
@@ -57,7 +55,7 @@ public class QueryRewriteAgent {
     }
 
     /**
-     * 改写用户查询：太短/纯口语/代词指代不清 → 补充上下文后重新表述。
+     * 改写用户查询：太短/纯口语/代词指代不清  补充上下文后重新表述。
      *
      * @param userId  用户ID
      * @param query   原始查询
